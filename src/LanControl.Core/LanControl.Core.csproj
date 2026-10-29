@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A1111111-1111-1111-1111-111111111111}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>LanControl.Core</RootNamespace>
+    <AssemblyName>LanControl.Core</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <OutputPath>..\..\bin\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Management" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Models\Enums.cs" />
+    <Compile Include="Models\AgentInfo.cs" />
+    <Compile Include="Models\Packet.cs" />
+    <Compile Include="Models\ScreenFrame.cs" />
+    <Compile Include="Models\InputEvent.cs" />
+    <Compile Include="Models\CommandRequest.cs" />
+    <Compile Include="Models\CommandResponse.cs" />
+    <Compile Include="Models\ProcessInfo.cs" />
+    <Compile Include="Models\ScanResult.cs" />
+    <Compile Include="Models\HardwareInventory.cs" />
+    <Compile Include="Models\FileTransferModels.cs" />
+    <Compile Include="Models\AgentConfig.cs" />
+    <Compile Include="Models\GatewayConfig.cs" />
+    <Compile Include="Models\HelpRequest.cs" />
+    <Compile Include="Network\PacketSerializer.cs" />
+    <Compile Include="Network\PacketFramer.cs" />
+    <Compile Include="Network\NetworkChannel.cs" />
+    <Compile Include="Utils\Logger.cs" />
+    <Compile Include="Utils\ScreenCapture.cs" />
+    <Compile Include="Utils\InputSimulator.cs" />
+    <Compile Include="Utils\SystemInfoCollector.cs" />
+    <Compile Include="Utils\HardwareInfoCollector.cs" />
+    <Compile Include="Utils\SubnetScanner.cs" />
+    <Compile Include="Utils\WallpaperManager.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
