@@ -75,6 +75,7 @@ namespace LanControl.Core.Utils
             return
                 "📌 Phiên bản hiện tại: " + FullVersion + " (Phát hành: " + ReleaseDate + ")\n\n" +
                 "🔹 Điểm mới trong " + FullVersion + " (31/10/2026):\n" +
+                "  • Cửa sổ nổi kiểm soát phát sóng (PiP): Tự thu gọn nổi trên cùng, kéo di chuyển và thay đổi kích thước tự do khi đang phát sóng.\n" +
                 "  • Phát sóng Màn hình nâng cao: Cho phép chọn phát sóng 1 chương trình cụ thể đang mở hoặc phát sóng Toàn màn hình.\n" +
                 "  • Tích hợp hệ thống Quản lý Phiên bản (Version) & Lịch sử thay đổi (CHANGELOG.md).\n" +
                 "  • Khắc phục lỗi hộp thoại 'Thành công' bị che khuất sau khi gửi tin nhắn tới máy trạm.\n" +
@@ -102,8 +103,12 @@ namespace LanControl.Core.Utils
 ## 🚀 Phiên bản v2.2.0 — *Ngày phát hành: 31/10/2026 (Bản hiện tại)*
 
 ### ✨ Tính năng mới
+- **Cửa Sổ Nổi Kiểm Soát Nội Dung Phát Sóng (Floating Broadcast Monitor / Picture-in-Picture)**:
+  - Khi phát sóng màn hình hoặc chương trình, hệ thống tự động thu gọn thành **Cửa sổ nổi (PiP)** luôn hiển thị trên cùng (`TopMost`) ở góc màn hình để người phát vừa thao tác trên các phần mềm khác vừa quan sát trực tiếp nội dung đang truyền tới máy trạm.
+  - Hỗ trợ **điều chỉnh kích thước tự do** (kéo viền/góc cửa sổ, lăn con lăn chuột trên hình xem trước, hoặc chọn nhanh cỡ Nhỏ/Vừa/Lớn trong menu chuột phải) và **kéo di chuyển cửa sổ tới bất kỳ vị trí nào** ngay trên khung hình xem trước.
+  - Tích hợp công nghệ `SetWindowDisplayAffinity (WDA_EXCLUDEFROMCAPTURE)` tự động ẩn cửa sổ nổi khỏi luồng chụp màn hình khi phát Toàn màn hình, tránh hiện tượng lặp hình trên máy trạm.
 - **Phát sóng 1 Chương trình cụ thể hoặc Toàn màn hình (`BroadcastSenderForm` & `ScreenCapture`)**:
-  - Bổ sung tùy chọn **🪟 Chọn 1 chương trình** bên cạnh chế độ **🖥️ Toàn màn hình** trong công cụ Phát sóng màn hình (`Broadcast`).
+  - Bổ sung tùy chọn **💻 Chọn 1 chương trình** bên cạnh chế độ **🖥️ Toàn màn hình** trong công cụ Phát sóng màn hình (`Broadcast`).
   - Tự động liệt kê toàn bộ các ứng dụng/cửa sổ đang mở trên máy quản trị viên (PowerPoint, Word, Chrome, trình phát video...), cho phép chỉ phát riêng nội dung cửa sổ chương trình đã chọn tới các máy trạm (kể cả khi có cửa sổ khác đè lên nhờ công nghệ `PrintWindow` + `PW_RENDERFULLCONTENT`).
   - Hỗ trợ chuyển đổi trực tiếp (Live Switch) giữa phát Toàn màn hình và phát từng Chương trình ngay trong khi đang phát sóng.
 - **Quản lý Phiên bản (Versioning) & Lịch sử thay đổi (Changelog)**:

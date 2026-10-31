@@ -12,6 +12,7 @@ namespace LanControl.Control.UI
         private readonly ControlClient _client;
         private List<AgentInfo> _agents = new List<AgentInfo>();
         private string _selectedVlan = "ALL";
+        private BroadcastSenderForm _broadcastForm;
 
         // UI Components
         private Panel _topRibbon;
@@ -667,8 +668,21 @@ namespace LanControl.Control.UI
 
         private void OpenBroadcastSender()
         {
-            BroadcastSenderForm bcast = new BroadcastSenderForm(_client, _agents);
-            bcast.ShowDialog(this);
+            if (_broadcastForm == null || _broadcastForm.IsDisposed)
+            {
+                _broadcastForm = new BroadcastSenderForm(_client, _agents);
+                _broadcastForm.Show();
+            }
+            else
+            {
+                if (_broadcastForm.WindowState == FormWindowState.Minimized)
+                {
+                    _broadcastForm.WindowState = FormWindowState.Normal;
+                }
+                _broadcastForm.Show();
+                _broadcastForm.BringToFront();
+                _broadcastForm.Activate();
+            }
         }
 
         private void OnLockSelectedClicked(object sender, EventArgs e)

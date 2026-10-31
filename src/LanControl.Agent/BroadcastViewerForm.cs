@@ -18,6 +18,9 @@ namespace LanControl.Agent
         private void InitializeComponent()
         {
             this.Text = "LAN Control - Màn Hình Trình Chiếu Của Quản Trị Viên (Teacher Broadcast)";
+            this.Size = new Size(960, 560);
+            this.MinimumSize = new Size(320, 200);
+            this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
             this.BackColor = Color.Black;
             this.TopMost = true;

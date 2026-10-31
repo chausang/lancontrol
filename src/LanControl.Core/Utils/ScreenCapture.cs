@@ -20,7 +20,7 @@ namespace LanControl.Core.Utils
 
         public override string ToString()
         {
-            return string.Format("🪟 [{0}] {1}", ProcessName, Title);
+            return string.Format("💻 [{0}] {1}", ProcessName, Title);
         }
     }
 
@@ -342,7 +342,7 @@ namespace LanControl.Core.Utils
                 try { ShowWindow(hWnd, SW_RESTORE); } catch { }
                 if (IsIconic(hWnd))
                 {
-                    return RenderPlaceholderFrame("🪟 Cửa sổ chương trình đang thu nhỏ (Minimized)", "Vui lòng mở lại cửa sổ chương trình trên màn hình máy chủ để tiếp tục hiển thị.", quality);
+                    return RenderPlaceholderFrame("💻 Cửa sổ chương trình đang thu nhỏ (Minimized)", "Vui lòng mở lại cửa sổ chương trình trên màn hình máy chủ để tiếp tục hiển thị.", quality);
                 }
             }
 
@@ -356,7 +356,7 @@ namespace LanControl.Core.Utils
             int height = rect.Bottom - rect.Top;
             if (width <= 10 || height <= 10)
             {
-                return RenderPlaceholderFrame("🪟 Cửa sổ chương trình có kích thước quá nhỏ", "Đang chờ cửa sổ hiển thị bình thường...", quality);
+                return RenderPlaceholderFrame("💻 Cửa sổ chương trình có kích thước quá nhỏ", "Đang chờ cửa sổ hiển thị bình thường...", quality);
             }
 
             using (Bitmap bmp = new Bitmap(width, height, PixelFormat.Format24bppRgb))
