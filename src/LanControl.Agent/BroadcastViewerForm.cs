@@ -21,14 +21,16 @@ namespace LanControl.Agent
         private const uint MF_DISABLED = 0x00000002;
         private const int WM_SYSCOMMAND = 0x0112;
 
+        private readonly Func<bool> _shouldStayOpenCheck;
         private PictureBox _picBox;
         private Label _lblStatus;
         private Timer _keepAliveTimer;
         private volatile bool _allowProgrammaticClose = false;
         private FormWindowState _desiredWindowState = FormWindowState.Maximized;
 
-        public BroadcastViewerForm()
+        public BroadcastViewerForm(Func<bool> shouldStayOpenCheck = null)
         {
+            _shouldStayOpenCheck = shouldStayOpenCheck;
             InitializeComponent();
         }
 
@@ -67,13 +69,29 @@ namespace LanControl.Agent
             _lblStatus.BringToFront();
 
             this.HandleCreated += (s, e) => DisableCloseButton();
-            this.Shown += (s, e) => DisableCloseButton();
+            this.Shown += (s, e) =>
+            {
+                DisableCloseButton();
+                StartWatchdogTimer();
+            };
+        }
 
-            // Watchdog timer to prevent client user from minimizing via Win+D / Win+M or hiding the broadcast window
-            _keepAliveTimer = new Timer { Interval = 800 };
+        private void StartWatchdogTimer()
+        {
+            if (_keepAliveTimer != null) return;
+
+            _keepAliveTimer = new Timer { Interval = 250 };
             _keepAliveTimer.Tick += (s, e) =>
             {
-                if (_allowProgrammaticClose || this.IsDisposed) return;
+                if (this.IsDisposed) return;
+
+                // Auto-close immediately if broadcast stopped or timed out
+                if (_allowProgrammaticClose || (_shouldStayOpenCheck != null && !_shouldStayOpenCheck()))
+                {
+                    AllowCloseAndDispose();
+                    return;
+                }
+
                 try
                 {
                     if (!this.Visible)
@@ -113,11 +131,17 @@ namespace LanControl.Agent
         public void AllowCloseAndDispose()
         {
             _allowProgrammaticClose = true;
+
+            if (this.IsDisposed) return;
+
             if (this.InvokeRequired)
             {
                 try
                 {
-                    this.BeginInvoke(new MethodInvoker(AllowCloseAndDispose));
+                    if (this.IsHandleCreated)
+                    {
+                        this.BeginInvoke(new MethodInvoker(AllowCloseAndDispose));
+                    }
                 }
                 catch { }
                 return;
@@ -136,6 +160,7 @@ namespace LanControl.Agent
 
             try
             {
+                this.Hide();
                 this.Close();
                 this.Dispose();
             }
@@ -144,13 +169,22 @@ namespace LanControl.Agent
 
         public void UpdateFrame(byte[] imageBytes)
         {
+            if (_allowProgrammaticClose || this.IsDisposed) return;
+
             if (this.InvokeRequired)
             {
-                this.BeginInvoke(new Action<byte[]>(UpdateFrame), (object)imageBytes);
+                try
+                {
+                    if (this.IsHandleCreated)
+                    {
+                        this.BeginInvoke(new Action<byte[]>(UpdateFrame), (object)imageBytes);
+                    }
+                }
+                catch { }
                 return;
             }
 
-            if (imageBytes == null || imageBytes.Length == 0) return;
+            if (_allowProgrammaticClose || this.IsDisposed || imageBytes == null || imageBytes.Length == 0) return;
 
             try
             {

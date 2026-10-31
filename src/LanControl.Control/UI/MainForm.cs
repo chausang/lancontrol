@@ -400,6 +400,11 @@ namespace LanControl.Control.UI
 
             // Update Table Grid
             UpdateTableGrid();
+
+            if (_broadcastForm != null && !_broadcastForm.IsDisposed)
+            {
+                _broadcastForm.UpdateAgentsList(_agents, null);
+            }
         }
 
         private void OnHeartbeatReceived(AgentInfo agent)
@@ -576,6 +581,16 @@ namespace LanControl.Control.UI
             miRdp.Font = new Font(miRdp.Font, FontStyle.Bold);
             menu.Items.Add(miRdp);
 
+            menu.Items.Add("📡 Phát Sóng Màn Hình Tới Máy Này...", null, (s, e) =>
+            {
+                List<AgentInfo> sel = _matrixPanel.GetSelectedAgents();
+                if (sel == null || sel.Count == 0 || !sel.Exists(a => a.AgentId == agent.AgentId))
+                {
+                    sel = new List<AgentInfo> { agent };
+                }
+                OpenBroadcastSender(sel);
+            });
+
             menu.Items.Add("🔍 Xem Cấu Hình & Bản Quyền Phần Mềm...", null, (s, e) => OpenHardwareInventory(new List<AgentInfo> { agent }));
 
             menu.Items.Add(new ToolStripSeparator());
@@ -666,15 +681,22 @@ namespace LanControl.Control.UI
             }
         }
 
-        private void OpenBroadcastSender()
+        private void OpenBroadcastSender(List<AgentInfo> preselectedAgents = null)
         {
+            List<AgentInfo> initialSel = preselectedAgents;
+            if (initialSel == null || initialSel.Count == 0)
+            {
+                initialSel = _matrixPanel != null ? _matrixPanel.GetSelectedAgents() : new List<AgentInfo>();
+            }
+
             if (_broadcastForm == null || _broadcastForm.IsDisposed)
             {
-                _broadcastForm = new BroadcastSenderForm(_client, _agents);
+                _broadcastForm = new BroadcastSenderForm(_client, _agents, initialSel);
                 _broadcastForm.Show();
             }
             else
             {
+                _broadcastForm.UpdateAgentsList(_agents, initialSel != null && initialSel.Count > 0 ? initialSel : null);
                 if (_broadcastForm.WindowState == FormWindowState.Minimized)
                 {
                     _broadcastForm.WindowState = FormWindowState.Normal;

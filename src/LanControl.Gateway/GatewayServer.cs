@@ -320,14 +320,51 @@ namespace LanControl.Gateway
 
         private void HandleBroadcast(NetworkChannel channel, Packet packet)
         {
-            // Master console broadcasting screen frame to all or selected VLAN agents
-            string targetVlan = packet.PayloadJson != null ? packet.PayloadJson.Trim() : "";
-            bool broadcastAll = string.IsNullOrEmpty(targetVlan) || targetVlan.Equals("ALL", StringComparison.OrdinalIgnoreCase);
+            // Master console broadcasting screen frame to all, selected VLAN, or specific AgentIds across multiple VLANs
+            string targetFilter = packet.PayloadJson != null ? packet.PayloadJson.Trim() : "";
+            bool broadcastAll = string.IsNullOrEmpty(targetFilter) || targetFilter.Equals("ALL", StringComparison.OrdinalIgnoreCase);
 
             lock (_stateLock)
             {
+                if (!broadcastAll && targetFilter.StartsWith("AGENTS:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string idsPart = targetFilter.Substring("AGENTS:".Length);
+                    string[] ids = idsPart.Split(new char[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                    HashSet<string> targetIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (string rawId in ids)
+                    {
+                        string id = rawId.Trim();
+                        if (!string.IsNullOrEmpty(id))
+                        {
+                            targetIds.Add(id);
+                        }
+                    }
+
+                    foreach (KeyValuePair<string, ClientConnection> kv in _agents)
+                    {
+                        ClientConnection agentConn = kv.Value;
+                        if (agentConn == null || agentConn.Channel == null || !agentConn.Channel.IsConnected) continue;
+
+                        bool match = targetIds.Contains(kv.Key) ||
+                                     (agentConn.Agent != null && !string.IsNullOrEmpty(agentConn.Agent.AgentId) && targetIds.Contains(agentConn.Agent.AgentId));
+                        if (match)
+                        {
+                            agentConn.Channel.Send(packet);
+                        }
+                    }
+                    return;
+                }
+
+                string targetVlan = targetFilter;
+                if (targetVlan.StartsWith("VLAN:", StringComparison.OrdinalIgnoreCase))
+                {
+                    targetVlan = targetVlan.Substring("VLAN:".Length).Trim();
+                }
+
                 foreach (ClientConnection agentConn in _agents.Values)
                 {
+                    if (agentConn == null || agentConn.Channel == null || !agentConn.Channel.IsConnected) continue;
+
                     if (broadcastAll ||
                         (agentConn.Agent != null && !string.IsNullOrEmpty(agentConn.Agent.VlanTag) &&
                          agentConn.Agent.VlanTag.Equals(targetVlan, StringComparison.OrdinalIgnoreCase)))

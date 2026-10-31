@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using LanControl.Core.Models;
@@ -27,12 +28,15 @@ namespace LanControl.Control.UI
         private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
 
         private readonly ControlClient _client;
-        private readonly List<AgentInfo> _allAgents;
+        private List<AgentInfo> _allAgents;
+        private readonly HashSet<string> _selectedAgentIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly object _sendSync = new object();
 
         private Panel _topConfigPanel;
         private Panel _floatingBar;
 
         private ComboBox _cboTarget;
+        private Button _btnPickAgents;
         private ComboBox _cboFps;
         private ComboBox _cboQuality;
         private CheckBox _chkTopMost;
@@ -57,8 +61,9 @@ namespace LanControl.Control.UI
         private Button _btnFloatingPin;
         private ContextMenuStrip _floatingMenu;
 
-        private bool _isBroadcasting = false;
+        private volatile bool _isBroadcasting = false;
         private bool _isFloatingMode = false;
+        private bool _suppressTargetComboEvent = false;
         private Rectangle _savedNormalBounds = Rectangle.Empty;
         private Rectangle _savedFloatingBounds = Rectangle.Empty;
 
@@ -73,19 +78,54 @@ namespace LanControl.Control.UI
         private volatile bool _captureAppWindowMode = false;
         private IntPtr _selectedWindowHandle = IntPtr.Zero;
         private string _selectedWindowLabel = "Toàn màn hình";
-        private string _activeTargetVlan = "";
+        private volatile string _activeTargetFilter = "";
 
-        public BroadcastSenderForm(ControlClient client, List<AgentInfo> allAgents)
+        public BroadcastSenderForm(ControlClient client, List<AgentInfo> allAgents, List<AgentInfo> preselectedAgents = null)
         {
             _client = client;
-            _allAgents = allAgents ?? new List<AgentInfo>();
+            _allAgents = allAgents != null ? new List<AgentInfo>(allAgents) : new List<AgentInfo>();
+
+            if (preselectedAgents != null)
+            {
+                foreach (AgentInfo a in preselectedAgents)
+                {
+                    if (a != null && !string.IsNullOrEmpty(a.AgentId))
+                    {
+                        _selectedAgentIds.Add(a.AgentId);
+                    }
+                }
+            }
+
             InitializeComponent();
+            PopulateTargetComboBox(_selectedAgentIds.Count > 0);
+        }
+
+        public void UpdateAgentsList(List<AgentInfo> allAgents, List<AgentInfo> preselectedAgents)
+        {
+            _allAgents = allAgents != null ? new List<AgentInfo>(allAgents) : new List<AgentInfo>();
+
+            if (preselectedAgents != null && preselectedAgents.Count > 0)
+            {
+                _selectedAgentIds.Clear();
+                foreach (AgentInfo a in preselectedAgents)
+                {
+                    if (a != null && !string.IsNullOrEmpty(a.AgentId))
+                    {
+                        _selectedAgentIds.Add(a.AgentId);
+                    }
+                }
+                PopulateTargetComboBox(true);
+            }
+            else
+            {
+                PopulateTargetComboBox(IsCustomAgentsTargetSelected());
+            }
         }
 
         private void InitializeComponent()
         {
-            this.Text = "LAN Control - Trình Chiếu & Phát Sóng Màn Hình / Chương Trình (1-to-Many Broadcaster)";
-            this.Size = new Size(920, 650);
+            this.Text = "LAN Control - Trình Chiếu & Phát Sóng Màn Hình / Chương Trình (Đa Máy - Đa VLAN)";
+            this.Size = new Size(950, 650);
             this.MinimumSize = new Size(280, 180);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = ModernTheme.BackgroundDark;
@@ -126,10 +166,7 @@ namespace LanControl.Control.UI
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             ModernTheme.ApplyToButton(_btnFloatingPin, ModernTheme.AccentBlue, Color.White);
-            _btnFloatingPin.Click += (s, e) =>
-            {
-                SetTopMostState(!this.TopMost);
-            };
+            _btnFloatingPin.Click += (s, e) => SetTopMostState(!this.TopMost);
 
             _btnFloatingExpand = new Button
             {
@@ -168,10 +205,10 @@ namespace LanControl.Control.UI
                 Padding = new Padding(12)
             };
 
-            // --- ROW 1: Target VLAN, FPS, Quality, TopMost ---
+            // --- ROW 1: Target Scope (All / VLAN / Custom Multi-Machine across VLANs), FPS, Quality, TopMost ---
             Label lblTarget = new Label
             {
-                Text = "Phạm vi phát sóng:",
+                Text = "Phạm vi phát:",
                 Location = new Point(15, 14),
                 AutoSize = true,
                 Font = ModernTheme.RegularFont,
@@ -181,28 +218,27 @@ namespace LanControl.Control.UI
             _cboTarget = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(142, 11),
-                Width = 215,
+                Location = new Point(112, 11),
+                Width = 228,
                 BackColor = ModernTheme.CardDark,
                 ForeColor = ModernTheme.TextPrimary,
                 Font = ModernTheme.RegularFont
             };
-            _cboTarget.Items.Add("Tất cả máy trạm (Broadcast All)");
-            HashSet<string> vlans = new HashSet<string>();
-            foreach (AgentInfo a in _allAgents)
+            _cboTarget.SelectedIndexChanged += OnTargetScopeComboChanged;
+
+            _btnPickAgents = new Button
             {
-                if (!string.IsNullOrEmpty(a.VlanTag) && !vlans.Contains(a.VlanTag))
-                {
-                    vlans.Add(a.VlanTag);
-                    _cboTarget.Items.Add("Chỉ phát VLAN: " + a.VlanTag);
-                }
-            }
-            _cboTarget.SelectedIndex = 0;
+                Text = "☑️ Chọn máy...",
+                Location = new Point(345, 10),
+                Size = new Size(115, 27)
+            };
+            ModernTheme.ApplyToButton(_btnPickAgents, ModernTheme.AccentBlue, Color.White);
+            _btnPickAgents.Click += (s, e) => ShowMultiAgentPickerDialog();
 
             Label lblFps = new Label
             {
                 Text = "Tốc độ:",
-                Location = new Point(370, 14),
+                Location = new Point(468, 14),
                 AutoSize = true,
                 Font = ModernTheme.RegularFont,
                 ForeColor = ModernTheme.TextSecondary
@@ -211,8 +247,8 @@ namespace LanControl.Control.UI
             _cboFps = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(428, 11),
-                Width = 82,
+                Location = new Point(522, 11),
+                Width = 76,
                 BackColor = ModernTheme.CardDark,
                 ForeColor = ModernTheme.TextPrimary,
                 Font = ModernTheme.RegularFont
@@ -226,7 +262,7 @@ namespace LanControl.Control.UI
             Label lblQuality = new Label
             {
                 Text = "Chất lượng:",
-                Location = new Point(522, 14),
+                Location = new Point(606, 14),
                 AutoSize = true,
                 Font = ModernTheme.RegularFont,
                 ForeColor = ModernTheme.TextSecondary
@@ -235,8 +271,8 @@ namespace LanControl.Control.UI
             _cboQuality = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(603, 11),
-                Width = 132,
+                Location = new Point(684, 11),
+                Width = 118,
                 BackColor = ModernTheme.CardDark,
                 ForeColor = ModernTheme.TextPrimary,
                 Font = ModernTheme.RegularFont
@@ -248,8 +284,8 @@ namespace LanControl.Control.UI
 
             _chkTopMost = new CheckBox
             {
-                Text = "📌 Luôn nổi trên cùng",
-                Location = new Point(748, 13),
+                Text = "📌 Luôn nổi",
+                Location = new Point(812, 13),
                 AutoSize = true,
                 Checked = true,
                 Font = ModernTheme.SmallFont,
@@ -260,7 +296,7 @@ namespace LanControl.Control.UI
             // --- ROW 2: Broadcast Source Mode (Full Screen vs Specific Program Window) ---
             Label lblSource = new Label
             {
-                Text = "Nguồn phát sóng:",
+                Text = "Nguồn phát:",
                 Location = new Point(15, 50),
                 AutoSize = true,
                 Font = ModernTheme.RegularFont,
@@ -270,7 +306,7 @@ namespace LanControl.Control.UI
             _radFullScreen = new RadioButton
             {
                 Text = "🖥️ Toàn màn hình",
-                Location = new Point(142, 48),
+                Location = new Point(112, 48),
                 AutoSize = true,
                 Checked = true,
                 Font = ModernTheme.SubHeaderFont,
@@ -280,7 +316,7 @@ namespace LanControl.Control.UI
             _radAppWindow = new RadioButton
             {
                 Text = "💻 Chọn 1 chương trình:",
-                Location = new Point(288, 48),
+                Location = new Point(258, 48),
                 AutoSize = true,
                 Checked = false,
                 Font = ModernTheme.SubHeaderFont,
@@ -290,8 +326,8 @@ namespace LanControl.Control.UI
             _cboAppWindow = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(475, 46),
-                Width = 315,
+                Location = new Point(445, 46),
+                Width = 375,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = ModernTheme.CardDark,
                 ForeColor = ModernTheme.TextPrimary,
@@ -302,7 +338,7 @@ namespace LanControl.Control.UI
             _btnRefreshApps = new Button
             {
                 Text = "🔄 Làm mới",
-                Location = new Point(798, 45),
+                Location = new Point(828, 45),
                 Size = new Size(92, 27),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
@@ -317,7 +353,7 @@ namespace LanControl.Control.UI
             _btnToggleBroadcast = new Button
             {
                 Text = "📡 BẮT ĐẦU PHÁT SÓNG MÀN HÌNH",
-                Location = new Point(142, 86),
+                Location = new Point(112, 86),
                 Size = new Size(245, 36)
             };
             ModernTheme.ApplyToButton(_btnToggleBroadcast, ModernTheme.AccentGreen, Color.White);
@@ -326,7 +362,7 @@ namespace LanControl.Control.UI
             _btnSwitchFloating = new Button
             {
                 Text = "🗗 Cửa sổ nổi (PiP)",
-                Location = new Point(395, 86),
+                Location = new Point(365, 86),
                 Size = new Size(138, 36)
             };
             ModernTheme.ApplyToButton(_btnSwitchFloating, ModernTheme.AccentBlue, Color.White);
@@ -335,7 +371,7 @@ namespace LanControl.Control.UI
             _chkAutoFloating = new CheckBox
             {
                 Text = "Tự thu gọn cửa sổ nổi khi phát",
-                Location = new Point(544, 84),
+                Location = new Point(514, 84),
                 AutoSize = true,
                 Checked = true,
                 Font = ModernTheme.SmallFont,
@@ -345,7 +381,7 @@ namespace LanControl.Control.UI
             _chkBringToFront = new CheckBox
             {
                 Text = "Đưa chương trình lên trên khi phát",
-                Location = new Point(544, 104),
+                Location = new Point(514, 104),
                 AutoSize = true,
                 Checked = true,
                 Font = ModernTheme.SmallFont,
@@ -356,7 +392,7 @@ namespace LanControl.Control.UI
             _chkExcludeSelfCapture = new CheckBox
             {
                 Text = "Ẩn cửa sổ nổi khỏi luồng phát",
-                Location = new Point(748, 84),
+                Location = new Point(718, 84),
                 AutoSize = true,
                 Checked = true,
                 Font = ModernTheme.SmallFont,
@@ -367,7 +403,7 @@ namespace LanControl.Control.UI
             _lblStatus = new Label
             {
                 Text = "Sẵn sàng (Toàn màn hình)",
-                Location = new Point(748, 104),
+                Location = new Point(718, 104),
                 AutoSize = true,
                 Font = ModernTheme.SmallFont,
                 ForeColor = ModernTheme.AccentYellow
@@ -375,6 +411,7 @@ namespace LanControl.Control.UI
 
             _topConfigPanel.Controls.Add(lblTarget);
             _topConfigPanel.Controls.Add(_cboTarget);
+            _topConfigPanel.Controls.Add(_btnPickAgents);
             _topConfigPanel.Controls.Add(lblFps);
             _topConfigPanel.Controls.Add(_cboFps);
             _topConfigPanel.Controls.Add(lblQuality);
@@ -409,17 +446,14 @@ namespace LanControl.Control.UI
             _picPreview.ContextMenuStrip = _floatingMenu;
             _floatingBar.ContextMenuStrip = _floatingMenu;
 
-            // Enable dragging the window from the preview image or floating bar
             AttachDragHandlers(_picPreview);
             AttachDragHandlers(_floatingBar);
             AttachDragHandlers(_lblFloatingStatus);
 
-            // Double-click on preview or floating bar toggles between Floating PiP Mode and Full Mode
             _picPreview.DoubleClick += (s, e) => SetFloatingMode(!_isFloatingMode);
             _floatingBar.DoubleClick += (s, e) => SetFloatingMode(false);
             _lblFloatingStatus.DoubleClick += (s, e) => SetFloatingMode(false);
 
-            // Mouse wheel on preview in floating mode scales the floating window smoothly
             this.MouseWheel += OnFormMouseWheel;
             _picPreview.MouseEnter += (s, e) =>
             {
@@ -448,6 +482,503 @@ namespace LanControl.Control.UI
                     StopBroadcasting(false);
                 }
             };
+        }
+
+        // =========================================================================
+        // MULTI-AGENT / MULTI-VLAN SELECTION LOGIC
+        // =========================================================================
+        private void PopulateTargetComboBox(bool selectCustomAgentsOption)
+        {
+            _suppressTargetComboEvent = true;
+            try
+            {
+                string previousSelection = _cboTarget.SelectedItem != null ? _cboTarget.SelectedItem.ToString() : "";
+
+                _cboTarget.BeginUpdate();
+                _cboTarget.Items.Clear();
+
+                _cboTarget.Items.Add(string.Format("🌐 Tất cả máy trạm ({0} máy)", _allAgents.Count));
+
+                string customLabel = _selectedAgentIds.Count > 0
+                    ? string.Format("🎯 Đã chọn {0} máy trạm (Đa VLAN)", _selectedAgentIds.Count)
+                    : "🎯 Chọn 1 hoặc nhiều máy (Đa VLAN)...";
+                _cboTarget.Items.Add(customLabel);
+
+                HashSet<string> vlans = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (AgentInfo a in _allAgents)
+                {
+                    if (a != null && !string.IsNullOrEmpty(a.VlanTag) && !vlans.Contains(a.VlanTag))
+                    {
+                        vlans.Add(a.VlanTag);
+                        _cboTarget.Items.Add("📂 Chỉ phát VLAN: " + a.VlanTag);
+                    }
+                }
+
+                if (selectCustomAgentsOption)
+                {
+                    _cboTarget.SelectedIndex = 1;
+                }
+                else if (!string.IsNullOrEmpty(previousSelection))
+                {
+                    int foundIdx = 0;
+                    for (int i = 0; i < _cboTarget.Items.Count; i++)
+                    {
+                        if (_cboTarget.Items[i].ToString().Equals(previousSelection, StringComparison.OrdinalIgnoreCase))
+                        {
+                            foundIdx = i;
+                            break;
+                        }
+                    }
+                    _cboTarget.SelectedIndex = foundIdx;
+                }
+                else
+                {
+                    _cboTarget.SelectedIndex = 0;
+                }
+
+                _cboTarget.EndUpdate();
+                UpdatePickAgentsButtonLabel();
+            }
+            finally
+            {
+                _suppressTargetComboEvent = false;
+            }
+        }
+
+        private void UpdatePickAgentsButtonLabel()
+        {
+            if (_btnPickAgents == null) return;
+            if (_selectedAgentIds.Count > 0 && IsCustomAgentsTargetSelected())
+            {
+                _btnPickAgents.Text = string.Format("☑️ Đã chọn ({0})", _selectedAgentIds.Count);
+                ModernTheme.ApplyToButton(_btnPickAgents, ModernTheme.AccentGreen, Color.White);
+            }
+            else
+            {
+                _btnPickAgents.Text = "☑️ Chọn máy...";
+                ModernTheme.ApplyToButton(_btnPickAgents, ModernTheme.AccentBlue, Color.White);
+            }
+        }
+
+        private bool IsCustomAgentsTargetSelected()
+        {
+            return _cboTarget != null && _cboTarget.SelectedIndex == 1;
+        }
+
+        private void OnTargetScopeComboChanged(object sender, EventArgs e)
+        {
+            if (_suppressTargetComboEvent) return;
+
+            if (_cboTarget.SelectedIndex == 1 && _selectedAgentIds.Count == 0)
+            {
+                ShowMultiAgentPickerDialog();
+                return;
+            }
+
+            UpdatePickAgentsButtonLabel();
+            ApplyTargetScopeChangeLiveIfBroadcasting();
+        }
+
+        private void ShowMultiAgentPickerDialog()
+        {
+            using (Form dlg = new Form())
+            {
+                dlg.Text = "☑️ Chọn 1 Hoặc Nhiều Máy Trạm Nhận Phát Sóng (Hỗ Trợ Đa VLAN)";
+                dlg.Size = new Size(680, 500);
+                dlg.MinimumSize = new Size(560, 380);
+                dlg.StartPosition = FormStartPosition.CenterParent;
+                dlg.BackColor = ModernTheme.BackgroundDark;
+                dlg.ForeColor = ModernTheme.TextPrimary;
+                dlg.TopMost = true;
+
+                // Top Filter Bar (VLAN filter + Search + Quick Select buttons)
+                Panel topFilter = new Panel
+                {
+                    Dock = DockStyle.Top,
+                    Height = 82,
+                    BackColor = ModernTheme.PanelDark,
+                    Padding = new Padding(10)
+                };
+
+                Label lblVlanFilter = new Label
+                {
+                    Text = "Lọc hiển thị VLAN:",
+                    Location = new Point(12, 14),
+                    AutoSize = true,
+                    Font = ModernTheme.RegularFont,
+                    ForeColor = ModernTheme.TextSecondary
+                };
+
+                ComboBox cboVlanFilter = new ComboBox
+                {
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Location = new Point(135, 11),
+                    Width = 195,
+                    BackColor = ModernTheme.CardDark,
+                    ForeColor = ModernTheme.TextPrimary,
+                    Font = ModernTheme.RegularFont
+                };
+                cboVlanFilter.Items.Add("Tất cả VLAN (" + _allAgents.Count + " máy)");
+                HashSet<string> vlans = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (AgentInfo a in _allAgents)
+                {
+                    if (a != null && !string.IsNullOrEmpty(a.VlanTag) && !vlans.Contains(a.VlanTag))
+                    {
+                        vlans.Add(a.VlanTag);
+                        cboVlanFilter.Items.Add(a.VlanTag);
+                    }
+                }
+                cboVlanFilter.SelectedIndex = 0;
+
+                Label lblSearch = new Label
+                {
+                    Text = "Tìm nhanh:",
+                    Location = new Point(345, 14),
+                    AutoSize = true,
+                    Font = ModernTheme.RegularFont,
+                    ForeColor = ModernTheme.TextSecondary
+                };
+
+                TextBox txtSearch = new TextBox
+                {
+                    Location = new Point(425, 11),
+                    Width = 220,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                    BackColor = ModernTheme.CardDark,
+                    ForeColor = ModernTheme.TextPrimary,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Font = ModernTheme.RegularFont
+                };
+
+                Button btnCheckVisible = new Button
+                {
+                    Text = "✅ Chọn các máy đang hiện",
+                    Location = new Point(12, 45),
+                    Size = new Size(185, 28)
+                };
+                ModernTheme.ApplyToButton(btnCheckVisible, ModernTheme.CardDark, ModernTheme.AccentGreen);
+
+                Button btnUncheckVisible = new Button
+                {
+                    Text = "⬜ Bỏ chọn đang hiện",
+                    Location = new Point(205, 45),
+                    Size = new Size(160, 28)
+                };
+                ModernTheme.ApplyToButton(btnUncheckVisible, ModernTheme.CardDark, ModernTheme.TextPrimary);
+
+                Button btnClearAll = new Button
+                {
+                    Text = "🧹 Xóa chọn tất cả VLAN",
+                    Location = new Point(373, 45),
+                    Size = new Size(175, 28)
+                };
+                ModernTheme.ApplyToButton(btnClearAll, ModernTheme.CardDark, ModernTheme.AccentYellow);
+
+                topFilter.Controls.Add(lblVlanFilter);
+                topFilter.Controls.Add(cboVlanFilter);
+                topFilter.Controls.Add(lblSearch);
+                topFilter.Controls.Add(txtSearch);
+                topFilter.Controls.Add(btnCheckVisible);
+                topFilter.Controls.Add(btnUncheckVisible);
+                topFilter.Controls.Add(btnClearAll);
+
+                // Bottom Confirmation Bar
+                Panel bottomBar = new Panel
+                {
+                    Dock = DockStyle.Bottom,
+                    Height = 52,
+                    BackColor = ModernTheme.PanelDark,
+                    Padding = new Padding(12, 8, 12, 8)
+                };
+
+                Label lblSummary = new Label
+                {
+                    Text = "Đang chọn: 0 máy trạm",
+                    Location = new Point(12, 16),
+                    AutoSize = true,
+                    Font = ModernTheme.SubHeaderFont,
+                    ForeColor = ModernTheme.AccentCyan
+                };
+
+                Button btnOk = new Button
+                {
+                    Text = "✔️ Xác Nhận Chọn",
+                    Size = new Size(165, 34),
+                    Location = new Point(385, 9),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+                ModernTheme.ApplyToButton(btnOk, ModernTheme.AccentGreen, Color.White);
+
+                Button btnCancel = new Button
+                {
+                    Text = "Hủy",
+                    Size = new Size(90, 34),
+                    Location = new Point(558, 9),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    DialogResult = DialogResult.Cancel
+                };
+                ModernTheme.ApplyToButton(btnCancel, ModernTheme.CardDark, ModernTheme.TextPrimary);
+
+                bottomBar.Controls.Add(lblSummary);
+                bottomBar.Controls.Add(btnOk);
+                bottomBar.Controls.Add(btnCancel);
+
+                // Grid of machines across all VLANs
+                DataGridView grid = new DataGridView
+                {
+                    Dock = DockStyle.Fill,
+                    BackgroundColor = ModernTheme.BackgroundDark,
+                    BorderStyle = BorderStyle.None,
+                    AllowUserToAddRows = false,
+                    AllowUserToDeleteRows = false,
+                    AllowUserToResizeRows = false,
+                    RowHeadersVisible = false,
+                    MultiSelect = false,
+                    SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                    EnableHeadersVisualStyles = false,
+                    GridColor = ModernTheme.BorderDark
+                };
+                grid.ColumnHeadersDefaultCellStyle.BackColor = ModernTheme.CardDark;
+                grid.ColumnHeadersDefaultCellStyle.ForeColor = ModernTheme.AccentCyan;
+                grid.ColumnHeadersDefaultCellStyle.Font = ModernTheme.SubHeaderFont;
+                grid.ColumnHeadersHeight = 34;
+
+                grid.DefaultCellStyle.BackColor = ModernTheme.BackgroundDark;
+                grid.DefaultCellStyle.ForeColor = ModernTheme.TextPrimary;
+                grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(35, 55, 80);
+                grid.DefaultCellStyle.SelectionForeColor = Color.White;
+                grid.DefaultCellStyle.Font = ModernTheme.RegularFont;
+                grid.RowTemplate.Height = 30;
+
+                DataGridViewCheckBoxColumn colCheck = new DataGridViewCheckBoxColumn
+                {
+                    HeaderText = "Chọn",
+                    FillWeight = 14
+                };
+                DataGridViewTextBoxColumn colVlan = new DataGridViewTextBoxColumn
+                {
+                    HeaderText = "Phân Đoạn VLAN",
+                    ReadOnly = true,
+                    FillWeight = 24
+                };
+                DataGridViewTextBoxColumn colHost = new DataGridViewTextBoxColumn
+                {
+                    HeaderText = "Tên Máy Trạm (Hostname)",
+                    ReadOnly = true,
+                    FillWeight = 32
+                };
+                DataGridViewTextBoxColumn colIp = new DataGridViewTextBoxColumn
+                {
+                    HeaderText = "Địa Chỉ IP",
+                    ReadOnly = true,
+                    FillWeight = 22
+                };
+                DataGridViewTextBoxColumn colUser = new DataGridViewTextBoxColumn
+                {
+                    HeaderText = "Người Dùng",
+                    ReadOnly = true,
+                    FillWeight = 20
+                };
+
+                grid.Columns.AddRange(new DataGridViewColumn[] { colCheck, colVlan, colHost, colIp, colUser });
+
+                // Working copy of selected AgentIds inside dialog
+                HashSet<string> tempSelected = new HashSet<string>(_selectedAgentIds, StringComparer.OrdinalIgnoreCase);
+
+                Action updateSummary = () =>
+                {
+                    HashSet<string> selectedVlans = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (AgentInfo a in _allAgents)
+                    {
+                        if (a != null && !string.IsNullOrEmpty(a.AgentId) && tempSelected.Contains(a.AgentId))
+                        {
+                            selectedVlans.Add(string.IsNullOrEmpty(a.VlanTag) ? "Default" : a.VlanTag);
+                        }
+                    }
+                    lblSummary.Text = string.Format("📌 Đã chọn: {0} / {1} máy trạm (thuộc {2} VLAN)",
+                        tempSelected.Count, _allAgents.Count, selectedVlans.Count);
+                    btnOk.Text = string.Format("✔️ Xác Nhận ({0} máy)", tempSelected.Count);
+                };
+
+                Action populateGrid = () =>
+                {
+                    string vlanFilter = cboVlanFilter.SelectedIndex <= 0 ? "" : cboVlanFilter.SelectedItem.ToString();
+                    string search = txtSearch.Text.Trim().ToLowerInvariant();
+
+                    grid.Rows.Clear();
+                    foreach (AgentInfo a in _allAgents)
+                    {
+                        if (a == null || string.IsNullOrEmpty(a.AgentId)) continue;
+
+                        string vlan = string.IsNullOrEmpty(a.VlanTag) ? "Default" : a.VlanTag;
+                        if (!string.IsNullOrEmpty(vlanFilter) && !vlan.Equals(vlanFilter, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        if (!string.IsNullOrEmpty(search))
+                        {
+                            bool match = (a.Hostname != null && a.Hostname.ToLowerInvariant().Contains(search)) ||
+                                         (a.IpAddress != null && a.IpAddress.ToLowerInvariant().Contains(search)) ||
+                                         (a.UserName != null && a.UserName.ToLowerInvariant().Contains(search)) ||
+                                         vlan.ToLowerInvariant().Contains(search);
+                            if (!match) continue;
+                        }
+
+                        int rowIdx = grid.Rows.Add(
+                            tempSelected.Contains(a.AgentId),
+                            vlan,
+                            a.Hostname,
+                            a.IpAddress,
+                            a.UserName
+                        );
+                        grid.Rows[rowIdx].Tag = a;
+                    }
+                    updateSummary();
+                };
+
+                // Clicking anywhere on a row toggles its checkbox
+                grid.CellClick += (s, e) =>
+                {
+                    if (e.RowIndex < 0 || e.RowIndex >= grid.Rows.Count) return;
+                    DataGridViewRow row = grid.Rows[e.RowIndex];
+                    AgentInfo a = row.Tag as AgentInfo;
+                    if (a == null || string.IsNullOrEmpty(a.AgentId)) return;
+
+                    bool newChecked = !tempSelected.Contains(a.AgentId);
+                    if (newChecked) tempSelected.Add(a.AgentId);
+                    else tempSelected.Remove(a.AgentId);
+
+                    row.Cells[0].Value = newChecked;
+                    updateSummary();
+                };
+
+                cboVlanFilter.SelectedIndexChanged += (s, e) => populateGrid();
+                txtSearch.TextChanged += (s, e) => populateGrid();
+
+                btnCheckVisible.Click += (s, e) =>
+                {
+                    foreach (DataGridViewRow row in grid.Rows)
+                    {
+                        AgentInfo a = row.Tag as AgentInfo;
+                        if (a != null && !string.IsNullOrEmpty(a.AgentId))
+                        {
+                            tempSelected.Add(a.AgentId);
+                            row.Cells[0].Value = true;
+                        }
+                    }
+                    updateSummary();
+                };
+
+                btnUncheckVisible.Click += (s, e) =>
+                {
+                    foreach (DataGridViewRow row in grid.Rows)
+                    {
+                        AgentInfo a = row.Tag as AgentInfo;
+                        if (a != null && !string.IsNullOrEmpty(a.AgentId))
+                        {
+                            tempSelected.Remove(a.AgentId);
+                            row.Cells[0].Value = false;
+                        }
+                    }
+                    updateSummary();
+                };
+
+                btnClearAll.Click += (s, e) =>
+                {
+                    tempSelected.Clear();
+                    foreach (DataGridViewRow row in grid.Rows)
+                    {
+                        row.Cells[0].Value = false;
+                    }
+                    updateSummary();
+                };
+
+                btnOk.Click += (s, e) =>
+                {
+                    if (tempSelected.Count == 0)
+                    {
+                        MessageBox.Show(dlg, "Vui lòng tích chọn ít nhất 1 máy trạm trong danh sách (hoặc bấm Hủy để phát tất cả)!",
+                            "Chưa chọn máy trạm", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    _selectedAgentIds.Clear();
+                    foreach (string id in tempSelected)
+                    {
+                        _selectedAgentIds.Add(id);
+                    }
+
+                    PopulateTargetComboBox(true);
+                    ApplyTargetScopeChangeLiveIfBroadcasting();
+                    dlg.DialogResult = DialogResult.OK;
+                    dlg.Close();
+                };
+
+                dlg.Controls.Add(grid);
+                dlg.Controls.Add(topFilter);
+                dlg.Controls.Add(bottomBar);
+
+                populateGrid();
+                dlg.ShowDialog(this);
+
+                // If user cancelled and had 0 selected while on index 1, revert to index 0
+                if (_cboTarget.SelectedIndex == 1 && _selectedAgentIds.Count == 0)
+                {
+                    _suppressTargetComboEvent = true;
+                    _cboTarget.SelectedIndex = 0;
+                    _suppressTargetComboEvent = false;
+                    UpdatePickAgentsButtonLabel();
+                }
+            }
+        }
+
+        private string ComputeTargetFilterFromSelection()
+        {
+            if (_cboTarget == null || _cboTarget.SelectedIndex <= 0 || _cboTarget.SelectedItem == null)
+            {
+                return ""; // Broadcast ALL
+            }
+
+            if (_cboTarget.SelectedIndex == 1)
+            {
+                if (_selectedAgentIds.Count == 0) return "";
+                StringBuilder sb = new StringBuilder("AGENTS:");
+                bool first = true;
+                foreach (string id in _selectedAgentIds)
+                {
+                    if (!first) sb.Append(',');
+                    sb.Append(id);
+                    first = false;
+                }
+                return sb.ToString();
+            }
+
+            string text = _cboTarget.SelectedItem.ToString();
+            const string prefix = "📂 Chỉ phát VLAN: ";
+            if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return text.Substring(prefix.Length).Trim();
+            }
+            return "";
+        }
+
+        private void ApplyTargetScopeChangeLiveIfBroadcasting()
+        {
+            if (!_isBroadcasting) return;
+
+            string newFilter = ComputeTargetFilterFromSelection();
+            string oldFilter = _activeTargetFilter;
+            if (string.Equals(newFilter, oldFilter, StringComparison.OrdinalIgnoreCase)) return;
+
+            lock (_sendSync)
+            {
+                // Stop broadcast on old targets that may no longer be included, then start on new targets
+                _client.StopBroadcast(oldFilter);
+                _activeTargetFilter = newFilter;
+                _client.StartBroadcast(_activeTargetFilter);
+            }
         }
 
         private void LayoutFloatingBarControls()
@@ -485,6 +1016,9 @@ namespace LanControl.Control.UI
         {
             _floatingMenu = new ContextMenuStrip();
 
+            ToolStripMenuItem mnuPickAgents = new ToolStripMenuItem("☑️ Chọn máy trạm nhận phát sóng (Đa VLAN)...");
+            mnuPickAgents.Click += (s, e) => ShowMultiAgentPickerDialog();
+
             ToolStripMenuItem mnuToggleFloat = new ToolStripMenuItem("🗗 Chuyển đổi Cửa sổ nổi thu gọn / Mở rộng cài đặt (Đúp chuột)");
             mnuToggleFloat.Click += (s, e) => SetFloatingMode(!_isFloatingMode);
 
@@ -506,6 +1040,8 @@ namespace LanControl.Control.UI
             ToolStripMenuItem mnuStop = new ToolStripMenuItem("🛑 Dừng / Bắt đầu phát sóng");
             mnuStop.Click += OnToggleBroadcast;
 
+            _floatingMenu.Items.Add(mnuPickAgents);
+            _floatingMenu.Items.Add(new ToolStripSeparator());
             _floatingMenu.Items.Add(mnuToggleFloat);
             _floatingMenu.Items.Add(mnuTopMost);
             _floatingMenu.Items.Add(new ToolStripSeparator());
@@ -611,7 +1147,6 @@ namespace LanControl.Control.UI
 
             if (floating)
             {
-                // Save current normal bounds before collapsing
                 if (this.WindowState == FormWindowState.Normal)
                 {
                     _savedNormalBounds = this.Bounds;
@@ -648,7 +1183,6 @@ namespace LanControl.Control.UI
             }
             else
             {
-                // Save current floating bounds so user's custom size & position are remembered
                 if (this.WindowState == FormWindowState.Normal)
                 {
                     _savedFloatingBounds = this.Bounds;
@@ -658,7 +1192,7 @@ namespace LanControl.Control.UI
                 _floatingBar.Visible = false;
                 _topConfigPanel.Visible = true;
 
-                this.Text = "LAN Control - Trình Chiếu & Phát Sóng Màn Hình / Chương Trình (1-to-Many Broadcaster)";
+                this.Text = "LAN Control - Trình Chiếu & Phát Sóng Màn Hình / Chương Trình (Đa Máy - Đa VLAN)";
 
                 if (_savedNormalBounds != Rectangle.Empty && _savedNormalBounds.Width >= 600)
                 {
@@ -667,7 +1201,7 @@ namespace LanControl.Control.UI
                 else
                 {
                     Rectangle workArea = Screen.FromControl(this).WorkingArea;
-                    int normW = 920;
+                    int normW = 950;
                     int normH = 650;
                     int normX = workArea.Left + (workArea.Width - normW) / 2;
                     int normY = workArea.Top + (workArea.Height - normH) / 2;
@@ -691,7 +1225,7 @@ namespace LanControl.Control.UI
                 _btnFloatingStop.Text = "▶️ Phát";
                 ModernTheme.ApplyToButton(_btnFloatingStop, ModernTheme.AccentGreen, Color.White);
                 _lblFloatingStatus.ForeColor = ModernTheme.AccentYellow;
-                _lblFloatingStatus.Text = "⏸️ Chưa phát (" + _selectedWindowLabel + ")";
+                _lblFloatingStatus.Text = "⏸️ Đã dừng (" + _selectedWindowLabel + ")";
             }
         }
 
@@ -807,21 +1341,6 @@ namespace LanControl.Control.UI
             catch { }
         }
 
-        private string GetSelectedTargetVlan()
-        {
-            if (_cboTarget.SelectedIndex <= 0 || _cboTarget.SelectedItem == null)
-            {
-                return "";
-            }
-            string text = _cboTarget.SelectedItem.ToString();
-            const string prefix = "Chỉ phát VLAN: ";
-            if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return text.Substring(prefix.Length).Trim();
-            }
-            return "";
-        }
-
         private void OnToggleBroadcast(object sender, EventArgs e)
         {
             if (!_isBroadcasting)
@@ -845,19 +1364,29 @@ namespace LanControl.Control.UI
                 return;
             }
 
+            if (IsCustomAgentsTargetSelected() && _selectedAgentIds.Count == 0)
+            {
+                ShowMultiAgentPickerDialog();
+                if (_selectedAgentIds.Count == 0) return;
+            }
+
             ApplyWindowCaptureAffinity();
 
-            _isBroadcasting = true;
             _framesSent = 0;
             _startTime = DateTime.Now;
-            _activeTargetVlan = GetSelectedTargetVlan();
+            _activeTargetFilter = ComputeTargetFilterFromSelection();
+
+            lock (_sendSync)
+            {
+                _isBroadcasting = true;
+                _client.StartBroadcast(_activeTargetFilter);
+            }
 
             _btnToggleBroadcast.Text = "🛑 DỪNG PHÁT SÓNG";
             ModernTheme.ApplyToButton(_btnToggleBroadcast, ModernTheme.AccentRed, Color.White);
             _lblStatus.Text = "Đang phát (" + _selectedWindowLabel + ")...";
             UpdateFloatingBarState();
 
-            // Automatically switch to compact floating monitor window if option is enabled
             if (_chkAutoFloating.Checked && !_isFloatingMode)
             {
                 SetFloatingMode(true);
@@ -871,8 +1400,6 @@ namespace LanControl.Control.UI
             {
                 ScreenCapture.BringWindowToFrontIfMinimized(_selectedWindowHandle, _chkBringToFront.Checked);
             }
-
-            _client.StartBroadcast(_activeTargetVlan);
 
             int targetFps = 15;
             if (_cboFps.SelectedIndex == 0) targetFps = 5;
@@ -903,13 +1430,19 @@ namespace LanControl.Control.UI
                             screenBytes = ScreenCapture.CaptureDesktopJpeg(quality, true, 0, 0);
                         }
 
+                        if (!_isBroadcasting) break;
+
                         if (screenBytes != null && screenBytes.Length > 0)
                         {
-                            _client.SendBroadcastFrame(screenBytes, _activeTargetVlan);
-                            _framesSent++;
+                            lock (_sendSync)
+                            {
+                                if (!_isBroadcasting) break;
+                                _client.SendBroadcastFrame(screenBytes, _activeTargetFilter);
+                                _framesSent++;
+                            }
 
                             // Update local preview
-                            if (_framesSent % 2 == 0)
+                            if (_framesSent % 2 == 0 && _isBroadcasting)
                             {
                                 if (this.IsHandleCreated && !this.IsDisposed)
                                 {
@@ -917,7 +1450,7 @@ namespace LanControl.Control.UI
                                     {
                                         try
                                         {
-                                            if (this.IsDisposed) return;
+                                            if (this.IsDisposed || !_isBroadcasting) return;
                                             using (MemoryStream ms = new MemoryStream(screenBytes))
                                             {
                                                 Image newImg = Image.FromStream(ms);
@@ -945,15 +1478,51 @@ namespace LanControl.Control.UI
                 }
             })
             {
-                IsBackground = true
+                IsBackground = true,
+                Name = "Master_BroadcastSenderLoop"
             };
             _broadcastThread.Start();
         }
 
         private void StopBroadcasting(bool restoreFullViewIfAutoFloated)
         {
+            string lastFilter = _activeTargetFilter;
             _isBroadcasting = false;
-            _client.StopBroadcast(_activeTargetVlan);
+
+            // Wait briefly for capture loop to exit before sending StopBroadcast so no late frame overtakes StopBroadcast
+            Thread t = _broadcastThread;
+            if (t != null && t.IsAlive && Thread.CurrentThread != t)
+            {
+                try { t.Join(250); } catch { }
+            }
+
+            lock (_sendSync)
+            {
+                _isBroadcasting = false;
+                if (!string.IsNullOrEmpty(lastFilter))
+                {
+                    _client.StopBroadcast(lastFilter);
+                }
+                // Also send global StopBroadcast to ensure all client viewers close reliably
+                _client.StopBroadcast("");
+            }
+
+            // Send a second confirmation StopBroadcast after 180ms to guarantee no in-flight packet remains
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    Thread.Sleep(180);
+                    lock (_sendSync)
+                    {
+                        if (!_isBroadcasting)
+                        {
+                            _client.StopBroadcast("");
+                        }
+                    }
+                }
+                catch { }
+            });
 
             _btnToggleBroadcast.Text = _radAppWindow.Checked
                 ? "📡 BẮT ĐẦU PHÁT SÓNG CHƯƠNG TRÌNH"

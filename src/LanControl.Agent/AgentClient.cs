@@ -20,7 +20,10 @@ namespace LanControl.Agent
 
         private LockScreenForm _lockForm;
         private BroadcastViewerForm _broadcastViewer;
+        private bool _openingBroadcastViewer = false;
         private volatile bool _isBroadcasting = false;
+        private long _lastStopBroadcastTicks = 0;
+        private long _lastBroadcastActivityTicks = 0;
         private FileTransferHandler _fileHandler;
         private readonly object _lockState = new object();
 
@@ -161,11 +164,22 @@ namespace LanControl.Agent
 
                     case PacketType.StartBroadcast:
                         _isBroadcasting = true;
+                        Interlocked.Exchange(ref _lastBroadcastActivityTicks, DateTime.UtcNow.Ticks);
                         OpenBroadcastViewer();
                         break;
 
                     case PacketType.BroadcastFrame:
-                        _isBroadcasting = true;
+                        if (!_isBroadcasting)
+                        {
+                            long stopTicks = Interlocked.Read(ref _lastStopBroadcastTicks);
+                            if (stopTicks > 0 && (DateTime.UtcNow.Ticks - stopTicks) < TimeSpan.FromSeconds(5).Ticks)
+                            {
+                                // Ignore in-flight frame arriving right after StopBroadcast
+                                break;
+                            }
+                            _isBroadcasting = true;
+                        }
+                        Interlocked.Exchange(ref _lastBroadcastActivityTicks, DateTime.UtcNow.Ticks);
                         if (_broadcastViewer == null || _broadcastViewer.IsDisposed)
                         {
                             OpenBroadcastViewer();
@@ -178,6 +192,7 @@ namespace LanControl.Agent
 
                     case PacketType.StopBroadcast:
                         _isBroadcasting = false;
+                        Interlocked.Exchange(ref _lastStopBroadcastTicks, DateTime.UtcNow.Ticks);
                         CloseBroadcastViewer();
                         break;
 
@@ -316,45 +331,89 @@ namespace LanControl.Agent
             }
         }
 
+        private bool ShouldBroadcastViewerStayOpen()
+        {
+            if (!_isBroadcasting) return false;
+            long lastTicks = Interlocked.Read(ref _lastBroadcastActivityTicks);
+            if (lastTicks <= 0) return _isBroadcasting;
+            return (DateTime.UtcNow.Ticks - lastTicks) < TimeSpan.FromSeconds(4.0).Ticks;
+        }
+
         private void OpenBroadcastViewer()
         {
+            if (!_isBroadcasting) return;
+
             lock (_lockState)
             {
-                if (_broadcastViewer == null || _broadcastViewer.IsDisposed)
+                if (_openingBroadcastViewer || (_broadcastViewer != null && !_broadcastViewer.IsDisposed))
                 {
-                    BroadcastViewerForm viewer = new BroadcastViewerForm();
-                    _broadcastViewer = viewer;
-                    Thread formThread = new Thread(new ThreadStart(delegate
-                    {
-                        try
-                        {
-                            Application.Run(viewer);
-                        }
-                        catch { }
-                    }))
-                    {
-                        IsBackground = true
-                    };
-                    formThread.SetApartmentState(ApartmentState.STA);
-                    formThread.Start();
+                    return;
                 }
+                _openingBroadcastViewer = true;
             }
+
+            Thread formThread = new Thread(new ThreadStart(delegate
+            {
+                BroadcastViewerForm viewer = null;
+                try
+                {
+                    if (!_isBroadcasting) return;
+
+                    viewer = new BroadcastViewerForm(ShouldBroadcastViewerStayOpen);
+                    lock (_lockState)
+                    {
+                        _broadcastViewer = viewer;
+                        _openingBroadcastViewer = false;
+                    }
+
+                    if (!_isBroadcasting)
+                    {
+                        viewer.AllowCloseAndDispose();
+                        return;
+                    }
+
+                    Application.Run(viewer);
+                }
+                catch { }
+                finally
+                {
+                    lock (_lockState)
+                    {
+                        if (_broadcastViewer == viewer)
+                        {
+                            _broadcastViewer = null;
+                        }
+                        _openingBroadcastViewer = false;
+                    }
+                }
+            }))
+            {
+                IsBackground = true,
+                Name = "Agent_BroadcastViewerThread"
+            };
+            formThread.SetApartmentState(ApartmentState.STA);
+            formThread.Start();
         }
 
         private void CloseBroadcastViewer()
         {
             _isBroadcasting = false;
+            Interlocked.Exchange(ref _lastStopBroadcastTicks, DateTime.UtcNow.Ticks);
+            BroadcastViewerForm viewerToClose = null;
             lock (_lockState)
             {
-                if (_broadcastViewer != null)
+                viewerToClose = _broadcastViewer;
+                _broadcastViewer = null;
+                _openingBroadcastViewer = false;
+            }
+
+            if (viewerToClose != null)
+            {
+                try
                 {
-                    try
-                    {
-                        _broadcastViewer.AllowCloseAndDispose();
-                    }
-                    catch { }
-                    _broadcastViewer = null;
+                    viewerToClose.AllowCloseAndDispose();
                 }
+                catch { }
             }
         }
 

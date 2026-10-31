@@ -158,7 +158,7 @@ namespace LanControl.Control.UI
             List<AgentInfo> list = new List<AgentInfo>();
             foreach (ThumbnailCard card in _cards.Values)
             {
-                if (card.Visible && card.IsSelected)
+                if (card.IsSelected && card.Agent != null)
                 {
                     list.Add(card.Agent);
                 }
