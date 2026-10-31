@@ -1,0 +1,4 @@
+*.sh text eol=lf
+*.command text eol=lf
+setup_linux/*.py text eol=lf
+setup_macos/*.py text eol=lf
