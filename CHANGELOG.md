@@ -24,6 +24,10 @@
   - Hỗ trợ nút mở và chỉnh sửa trực tiếp tệp `CHANGELOG.md` để quản trị viên dễ dàng ghi chú, cập nhật lịch sử nâng cấp về sau.
 
 ### 🐛 Sửa lỗi & Cải tiến
+- **Xóa Dữ Liệu Duyệt Web & Cache Trình Duyệt (`BrowserCleanOptionsForm`)**:
+  - Sửa lỗi chưa xóa triệt để lịch sử duyệt web (`Browsing history`), `Cookies and site data` và bộ nhớ đệm trên các trình duyệt (Chrome, Edge, Cốc Cốc, Firefox, Brave, Opera, Vivaldi).
+  - Bổ sung đóng hoàn toàn cây tiến trình trình duyệt & chạy ngầm (`msedgewebview2`, `taskkill /F /T`) để giải phóng khóa SQLite trước khi xóa; quét toàn bộ tài khoản người dùng trong `C:\Users\*`; làm sạch đầy đủ các bảng dữ liệu thao tác web (`History`, `History-wal`, `Sync Data\LevelDB`, `Sessions`, `Network\Cookies`, `DIPS`, `QuotaManager`, `Service Worker\Database`, `IndexedDB`, `Local Storage`).
+  - Chỉ xóa đúng 4 mục dữ liệu thao tác duyệt web tương ứng hộp thoại `Delete browsing data` của trình duyệt; giữ nguyên 100% các thư mục khác của trình duyệt (`Extensions`, `Bookmarks`, `Login Data`, `Web Data` / Autofill, `Preferences`).
 - **Tính năng Nhắn tin (`SendMessageForm` & `CommandHandler`)**:
   - Khắc phục triệt để lỗi hộp thoại báo `Thành công` bị cửa sổ `Gửi Thông Báo / Tin Nhắn Tới Máy Trạm` che khuất làm khóa thao tác và phải nhấn `Alt + Tab`.
   - Đóng cửa sổ nhập tin nhắn ngay khi gửi và gắn quyền ưu tiên hiển thị (`TopMost` / `Owner`) cho cả thông báo xác nhận lẫn hộp thoại tin nhắn trên màn hình máy trạm.
