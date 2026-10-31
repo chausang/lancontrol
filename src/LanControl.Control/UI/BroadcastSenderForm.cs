@@ -151,7 +151,6 @@ namespace LanControl.Control.UI
                 Location = new Point(8, 10),
                 AutoSize = false,
                 Size = new Size(200, 20),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = ModernTheme.AccentGreen,
                 AutoEllipsis = true,
@@ -162,8 +161,7 @@ namespace LanControl.Control.UI
             {
                 Text = "📌",
                 Size = new Size(34, 26),
-                Location = new Point(215, 6),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Location = new Point(215, 6)
             };
             ModernTheme.ApplyToButton(_btnFloatingPin, ModernTheme.AccentBlue, Color.White);
             _btnFloatingPin.Click += (s, e) => SetTopMostState(!this.TopMost);
@@ -172,8 +170,7 @@ namespace LanControl.Control.UI
             {
                 Text = "🗖 Mở rộng",
                 Size = new Size(88, 26),
-                Location = new Point(253, 6),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Location = new Point(253, 6)
             };
             ModernTheme.ApplyToButton(_btnFloatingExpand, ModernTheme.CardDark, ModernTheme.AccentCyan);
             _btnFloatingExpand.Click += (s, e) => SetFloatingMode(false);
@@ -182,8 +179,7 @@ namespace LanControl.Control.UI
             {
                 Text = "🛑 Dừng",
                 Size = new Size(72, 26),
-                Location = new Point(345, 6),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Location = new Point(345, 6)
             };
             ModernTheme.ApplyToButton(_btnFloatingStop, ModernTheme.AccentRed, Color.White);
             _btnFloatingStop.Click += OnToggleBroadcast;
@@ -327,8 +323,7 @@ namespace LanControl.Control.UI
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Location = new Point(445, 46),
-                Width = 375,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Width = 370,
                 BackColor = ModernTheme.CardDark,
                 ForeColor = ModernTheme.TextPrimary,
                 Font = ModernTheme.RegularFont,
@@ -338,12 +333,21 @@ namespace LanControl.Control.UI
             _btnRefreshApps = new Button
             {
                 Text = "🔄 Làm mới",
-                Location = new Point(828, 45),
-                Size = new Size(92, 27),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Location = new Point(822, 45),
+                Size = new Size(95, 27)
             };
             ModernTheme.ApplyToButton(_btnRefreshApps, ModernTheme.CardDark, ModernTheme.AccentCyan);
             _btnRefreshApps.Click += (s, e) => RefreshOpenWindowsList(true);
+
+            _topConfigPanel.Resize += (s, e) =>
+            {
+                int w = _topConfigPanel.ClientSize.Width;
+                if (w > 560)
+                {
+                    _btnRefreshApps.Location = new Point(w - _btnRefreshApps.Width - 14, 45);
+                    _cboAppWindow.Width = Math.Max(140, _btnRefreshApps.Left - _cboAppWindow.Left - 8);
+                }
+            };
 
             _radFullScreen.CheckedChanged += (s, e) => OnSourceModeChanged();
             _radAppWindow.CheckedChanged += (s, e) => OnSourceModeChanged();
@@ -584,18 +588,18 @@ namespace LanControl.Control.UI
             using (Form dlg = new Form())
             {
                 dlg.Text = "☑️ Chọn 1 Hoặc Nhiều Máy Trạm Nhận Phát Sóng (Hỗ Trợ Đa VLAN)";
-                dlg.Size = new Size(680, 500);
-                dlg.MinimumSize = new Size(560, 380);
+                dlg.Size = new Size(740, 520);
+                dlg.MinimumSize = new Size(640, 400);
                 dlg.StartPosition = FormStartPosition.CenterParent;
                 dlg.BackColor = ModernTheme.BackgroundDark;
                 dlg.ForeColor = ModernTheme.TextPrimary;
                 dlg.TopMost = true;
 
-                // Top Filter Bar (VLAN filter + Search + Quick Select buttons)
+                // Top Filter Bar (VLAN filter + Search + Quick Select buttons + Top OK button)
                 Panel topFilter = new Panel
                 {
                     Dock = DockStyle.Top,
-                    Height = 82,
+                    Height = 86,
                     BackColor = ModernTheme.PanelDark,
                     Padding = new Padding(10)
                 };
@@ -613,7 +617,7 @@ namespace LanControl.Control.UI
                 {
                     DropDownStyle = ComboBoxStyle.DropDownList,
                     Location = new Point(135, 11),
-                    Width = 195,
+                    Width = 210,
                     BackColor = ModernTheme.CardDark,
                     ForeColor = ModernTheme.TextPrimary,
                     Font = ModernTheme.RegularFont
@@ -633,7 +637,7 @@ namespace LanControl.Control.UI
                 Label lblSearch = new Label
                 {
                     Text = "Tìm nhanh:",
-                    Location = new Point(345, 14),
+                    Location = new Point(360, 14),
                     AutoSize = true,
                     Font = ModernTheme.RegularFont,
                     ForeColor = ModernTheme.TextSecondary
@@ -641,9 +645,8 @@ namespace LanControl.Control.UI
 
                 TextBox txtSearch = new TextBox
                 {
-                    Location = new Point(425, 11),
-                    Width = 220,
-                    Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                    Location = new Point(440, 11),
+                    Width = 260,
                     BackColor = ModernTheme.CardDark,
                     ForeColor = ModernTheme.TextPrimary,
                     BorderStyle = BorderStyle.FixedSingle,
@@ -652,27 +655,35 @@ namespace LanControl.Control.UI
 
                 Button btnCheckVisible = new Button
                 {
-                    Text = "✅ Chọn các máy đang hiện",
-                    Location = new Point(12, 45),
-                    Size = new Size(185, 28)
+                    Text = "✅ Chọn tất cả đang hiện",
+                    Location = new Point(12, 46),
+                    Size = new Size(195, 30)
                 };
                 ModernTheme.ApplyToButton(btnCheckVisible, ModernTheme.CardDark, ModernTheme.AccentGreen);
 
                 Button btnUncheckVisible = new Button
                 {
-                    Text = "⬜ Bỏ chọn đang hiện",
-                    Location = new Point(205, 45),
-                    Size = new Size(160, 28)
+                    Text = "✖ Bỏ chọn đang hiện",
+                    Location = new Point(214, 46),
+                    Size = new Size(165, 30)
                 };
                 ModernTheme.ApplyToButton(btnUncheckVisible, ModernTheme.CardDark, ModernTheme.TextPrimary);
 
                 Button btnClearAll = new Button
                 {
-                    Text = "🧹 Xóa chọn tất cả VLAN",
-                    Location = new Point(373, 45),
-                    Size = new Size(175, 28)
+                    Text = "🧹 Xóa chọn tất cả",
+                    Location = new Point(386, 46),
+                    Size = new Size(155, 30)
                 };
                 ModernTheme.ApplyToButton(btnClearAll, ModernTheme.CardDark, ModernTheme.AccentYellow);
+
+                Button btnTopOk = new Button
+                {
+                    Text = "✔️ OK - Chọn",
+                    Location = new Point(550, 46),
+                    Size = new Size(150, 30)
+                };
+                ModernTheme.ApplyToButton(btnTopOk, ModernTheme.AccentGreen, Color.White);
 
                 topFilter.Controls.Add(lblVlanFilter);
                 topFilter.Controls.Add(cboVlanFilter);
@@ -681,12 +692,13 @@ namespace LanControl.Control.UI
                 topFilter.Controls.Add(btnCheckVisible);
                 topFilter.Controls.Add(btnUncheckVisible);
                 topFilter.Controls.Add(btnClearAll);
+                topFilter.Controls.Add(btnTopOk);
 
                 // Bottom Confirmation Bar
                 Panel bottomBar = new Panel
                 {
                     Dock = DockStyle.Bottom,
-                    Height = 52,
+                    Height = 54,
                     BackColor = ModernTheme.PanelDark,
                     Padding = new Padding(12, 8, 12, 8)
                 };
@@ -694,7 +706,7 @@ namespace LanControl.Control.UI
                 Label lblSummary = new Label
                 {
                     Text = "Đang chọn: 0 máy trạm",
-                    Location = new Point(12, 16),
+                    Location = new Point(12, 17),
                     AutoSize = true,
                     Font = ModernTheme.SubHeaderFont,
                     ForeColor = ModernTheme.AccentCyan
@@ -702,19 +714,17 @@ namespace LanControl.Control.UI
 
                 Button btnOk = new Button
                 {
-                    Text = "✔️ Xác Nhận Chọn",
-                    Size = new Size(165, 34),
-                    Location = new Point(385, 9),
-                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                    Text = "✔️ OK - Xác Nhận Chọn",
+                    Size = new Size(195, 36),
+                    Location = new Point(400, 9)
                 };
                 ModernTheme.ApplyToButton(btnOk, ModernTheme.AccentGreen, Color.White);
 
                 Button btnCancel = new Button
                 {
                     Text = "Hủy",
-                    Size = new Size(90, 34),
-                    Location = new Point(558, 9),
-                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    Size = new Size(90, 36),
+                    Location = new Point(605, 9),
                     DialogResult = DialogResult.Cancel
                 };
                 ModernTheme.ApplyToButton(btnCancel, ModernTheme.CardDark, ModernTheme.TextPrimary);
@@ -722,6 +732,25 @@ namespace LanControl.Control.UI
                 bottomBar.Controls.Add(lblSummary);
                 bottomBar.Controls.Add(btnOk);
                 bottomBar.Controls.Add(btnCancel);
+
+                Action layoutDialogBars = () =>
+                {
+                    int topW = topFilter.ClientSize.Width;
+                    if (topW > 460)
+                    {
+                        txtSearch.Width = Math.Max(120, topW - txtSearch.Left - 14);
+                        btnTopOk.Location = new Point(Math.Max(548, topW - btnTopOk.Width - 14), 46);
+                    }
+
+                    int botW = bottomBar.ClientSize.Width;
+                    if (botW > 320)
+                    {
+                        btnCancel.Location = new Point(botW - btnCancel.Width - 14, 9);
+                        btnOk.Location = new Point(btnCancel.Left - btnOk.Width - 10, 9);
+                    }
+                };
+                topFilter.Resize += (s, e) => layoutDialogBars();
+                bottomBar.Resize += (s, e) => layoutDialogBars();
 
                 // Grid of machines across all VLANs
                 DataGridView grid = new DataGridView
@@ -754,6 +783,7 @@ namespace LanControl.Control.UI
                 DataGridViewCheckBoxColumn colCheck = new DataGridViewCheckBoxColumn
                 {
                     HeaderText = "Chọn",
+                    ReadOnly = true,
                     FillWeight = 14
                 };
                 DataGridViewTextBoxColumn colVlan = new DataGridViewTextBoxColumn
@@ -781,6 +811,7 @@ namespace LanControl.Control.UI
                     FillWeight = 20
                 };
 
+                grid.ReadOnly = true;
                 grid.Columns.AddRange(new DataGridViewColumn[] { colCheck, colVlan, colHost, colIp, colUser });
 
                 // Working copy of selected AgentIds inside dialog
@@ -798,7 +829,8 @@ namespace LanControl.Control.UI
                     }
                     lblSummary.Text = string.Format("📌 Đã chọn: {0} / {1} máy trạm (thuộc {2} VLAN)",
                         tempSelected.Count, _allAgents.Count, selectedVlans.Count);
-                    btnOk.Text = string.Format("✔️ Xác Nhận ({0} máy)", tempSelected.Count);
+                    btnOk.Text = string.Format("✔️ OK - Chọn ({0} máy)", tempSelected.Count);
+                    btnTopOk.Text = string.Format("✔️ OK ({0} máy)", tempSelected.Count);
                 };
 
                 Action populateGrid = () =>
@@ -895,7 +927,7 @@ namespace LanControl.Control.UI
                     updateSummary();
                 };
 
-                btnOk.Click += (s, e) =>
+                EventHandler confirmHandler = (s, e) =>
                 {
                     if (tempSelected.Count == 0)
                     {
@@ -916,10 +948,18 @@ namespace LanControl.Control.UI
                     dlg.Close();
                 };
 
+                btnOk.Click += confirmHandler;
+                btnTopOk.Click += confirmHandler;
+
+                dlg.AcceptButton = btnOk;
+                dlg.CancelButton = btnCancel;
+
                 dlg.Controls.Add(grid);
                 dlg.Controls.Add(topFilter);
                 dlg.Controls.Add(bottomBar);
 
+                dlg.Shown += (s, e) => layoutDialogBars();
+                layoutDialogBars();
                 populateGrid();
                 dlg.ShowDialog(this);
 
