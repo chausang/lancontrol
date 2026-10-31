@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using LanControl.Core.Models;
 using LanControl.Core.Utils;
@@ -9,27 +10,37 @@ namespace LanControl.Agent
 {
     public class AgentTrayApp : ApplicationContext
     {
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
         private readonly NotifyIcon _trayIcon;
         private readonly AgentClient _client;
         private readonly AgentConfig _config;
+        private readonly Control _uiControl;
+        private readonly Timer _tooltipTimer;
+        private Form _activeDialog;
 
         public AgentTrayApp(AgentConfig config)
         {
             _config = config;
+            _uiControl = new Control();
+            _uiControl.CreateControl();
+
             _client = new AgentClient(_config);
             _client.ConnectionStateChanged += OnConnectionChanged;
             _client.HelpResponseReceived += OnHelpResponse;
 
-            ContextMenu menu = new ContextMenu();
-            menu.MenuItems.Add(new MenuItem("LAN Control Client Agent (Active)") { Enabled = false });
-            menu.MenuItems.Add("-");
-            menu.MenuItems.Add(new MenuItem("🙋 Gọi Hỗ Trợ (Yêu cầu kết nối)...", OnRequestHelp));
-            menu.MenuItems.Add(new MenuItem("Thông tin kết nối", OnShowInfo));
-            menu.MenuItems.Add(new MenuItem("Đổi VLAN...", OnChangeVlan));
-            menu.MenuItems.Add(new MenuItem("Kết nối lại Gateway...", OnReconnect));
-            menu.MenuItems.Add(new MenuItem("ℹ️ Giới thiệu (About)...", OnShowAbout));
-            menu.MenuItems.Add("-");
-            menu.MenuItems.Add(new MenuItem("Thoát Agent", OnExit));
+            ContextMenuStrip menu = new ContextMenuStrip();
+            ToolStripMenuItem titleItem = new ToolStripMenuItem("🛡️ LAN Control Client Agent (Active)") { Enabled = false };
+            menu.Items.Add(titleItem);
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("🙋 Gọi Hỗ Trợ (Yêu cầu kết nối)...", null, (s, e) => RunMenuAction(() => OnRequestHelp(s, e)));
+            menu.Items.Add("ℹ️ Thông tin kết nối", null, (s, e) => RunMenuAction(() => OnShowInfo(s, e)));
+            menu.Items.Add("🌐 Đổi VLAN...", null, (s, e) => RunMenuAction(() => OnChangeVlan(s, e)));
+            menu.Items.Add("🔄 Kết nối lại Gateway...", null, (s, e) => RunMenuAction(() => OnReconnect(s, e)));
+            menu.Items.Add("📖 Giới thiệu (About)...", null, (s, e) => RunMenuAction(() => OnShowAbout(s, e)));
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("❌ Thoát Agent", null, (s, e) => RunMenuAction(() => OnExit(s, e)));
 
             // Load icon.ico or create dynamic tray icon with "L" (LAN Control)
             Icon appIcon = null;
@@ -61,14 +72,86 @@ namespace LanControl.Agent
             _trayIcon = new NotifyIcon
             {
                 Icon = appIcon,
-                ContextMenu = menu,
+                ContextMenuStrip = menu,
                 Visible = true
             };
+            _trayIcon.DoubleClick += (s, e) => RunMenuAction(() => OnShowInfo(s, e));
 
             UpdateTrayTooltip("Đang kết nối...");
-            _trayIcon.MouseMove += (s, e) => UpdateTrayTooltip();
+
+            _tooltipTimer = new Timer { Interval = 5000 };
+            _tooltipTimer.Tick += (s, e) => UpdateTrayTooltip();
+            _tooltipTimer.Start();
 
             _client.Start();
+        }
+
+        private void RunMenuAction(Action action)
+        {
+            if (_uiControl != null && _uiControl.IsHandleCreated)
+            {
+                try
+                {
+                    _uiControl.BeginInvoke(action);
+                    return;
+                }
+                catch { }
+            }
+            action();
+        }
+
+        private void PrepareActiveDialog(Form dialog)
+        {
+            if (_activeDialog != null && !_activeDialog.IsDisposed)
+            {
+                try { _activeDialog.Close(); } catch { }
+            }
+            _activeDialog = dialog;
+            dialog.TopMost = true;
+            dialog.ShowInTaskbar = true;
+            dialog.Shown += (s, e) =>
+            {
+                try
+                {
+                    SetForegroundWindow(dialog.Handle);
+                    dialog.BringToFront();
+                    dialog.Activate();
+                }
+                catch { }
+            };
+        }
+
+        private void ShowTopMostMessage(string text, string title, MessageBoxIcon icon)
+        {
+            if (_activeDialog != null && !_activeDialog.IsDisposed)
+            {
+                try { _activeDialog.Close(); } catch { }
+            }
+
+            using (Form topOwner = new Form
+            {
+                TopMost = true,
+                ShowInTaskbar = false,
+                FormBorderStyle = FormBorderStyle.None,
+                StartPosition = FormStartPosition.CenterScreen,
+                Size = new Size(1, 1),
+                Opacity = 0
+            })
+            {
+                _activeDialog = topOwner;
+                try
+                {
+                    topOwner.Show();
+                    SetForegroundWindow(topOwner.Handle);
+                    topOwner.BringToFront();
+                    topOwner.Activate();
+                    MessageBox.Show(topOwner, text, title, MessageBoxButtons.OK, icon);
+                }
+                finally
+                {
+                    if (_activeDialog == topOwner) _activeDialog = null;
+                }
+            }
         }
 
         private void UpdateTrayTooltip(string statusText = null)
@@ -117,14 +200,17 @@ namespace LanControl.Agent
                     tooltip = tooltip.Substring(0, 63);
                 }
 
-                _trayIcon.Text = tooltip;
+                if (_trayIcon.Text != tooltip)
+                {
+                    _trayIcon.Text = tooltip;
+                }
             }
             catch { }
         }
 
         private void OnConnectionChanged(bool connected)
         {
-            UpdateTrayTooltip(connected ? "Đã kết nối" : "Mất kết nối");
+            RunMenuAction(() => UpdateTrayTooltip(connected ? "Đã kết nối" : "Mất kết nối"));
         }
 
         private void OnShowInfo(object sender, EventArgs e)
@@ -149,7 +235,7 @@ namespace LanControl.Agent
                 _client.Info.AvailableMemoryMb,
                 _client.Info.CpuUsagePercent);
 
-            MessageBox.Show(info, "LAN Control Client Agent", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            ShowTopMostMessage(info, "LAN Control Client Agent", MessageBoxIcon.Information);
         }
 
         private void OnChangeVlan(object sender, EventArgs e)
@@ -163,6 +249,7 @@ namespace LanControl.Agent
                 prompt.StartPosition = FormStartPosition.CenterScreen;
                 prompt.MaximizeBox = false;
                 prompt.MinimizeBox = false;
+                PrepareActiveDialog(prompt);
 
                 Label textLabel = new Label() { Left = 20, Top = 15, Text = "Nhập nhãn VLAN (VD: VLAN 10, VLAN 20):", Width = 320 };
                 TextBox textBox = new TextBox() { Left = 20, Top = 40, Width = 320, Text = _config.VlanTag };
@@ -175,19 +262,27 @@ namespace LanControl.Agent
                 prompt.Controls.Add(cancel);
                 prompt.AcceptButton = confirmation;
 
-                if (prompt.ShowDialog() == DialogResult.OK)
+                try
                 {
-                    string newVlan = textBox.Text.Trim();
-                    if (!string.IsNullOrEmpty(newVlan) && !newVlan.Equals(_config.VlanTag, StringComparison.OrdinalIgnoreCase))
+                    if (prompt.ShowDialog() == DialogResult.OK)
                     {
-                        _config.VlanTag = newVlan;
-                        _client.Info.VlanTag = newVlan;
-                        _config.Save("agent_config.json");
-                        MessageBox.Show("Đã cập nhật phân đoạn: " + newVlan + "\nĐang đăng ký lại với Gateway...", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        _client.Stop();
-                        UpdateTrayTooltip("Đang kết nối lại...");
-                        _client.Start();
+                        string newVlan = textBox.Text.Trim();
+                        if (!string.IsNullOrEmpty(newVlan) && !newVlan.Equals(_config.VlanTag, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _config.VlanTag = newVlan;
+                            _client.Info.VlanTag = newVlan;
+                            string cfgPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "agent_config.json");
+                            _config.Save(cfgPath);
+                            MessageBox.Show(prompt, "Đã cập nhật phân đoạn: " + newVlan + "\nĐang đăng ký lại với Gateway...", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            _client.Stop();
+                            UpdateTrayTooltip("Đang kết nối lại...");
+                            _client.Start();
+                        }
                     }
+                }
+                finally
+                {
+                    if (_activeDialog == prompt) _activeDialog = null;
                 }
             }
         }
@@ -204,6 +299,7 @@ namespace LanControl.Agent
                 prompt.MaximizeBox = false;
                 prompt.MinimizeBox = false;
                 prompt.BackColor = Color.FromArgb(245, 247, 250);
+                PrepareActiveDialog(prompt);
 
                 string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
                 if (File.Exists(iconPath))
@@ -360,7 +456,14 @@ namespace LanControl.Agent
                 prompt.AcceptButton = btnConnect;
                 prompt.CancelButton = btnCancel;
 
-                prompt.ShowDialog();
+                try
+                {
+                    prompt.ShowDialog();
+                }
+                finally
+                {
+                    if (_activeDialog == prompt) _activeDialog = null;
+                }
             }
         }
 
@@ -372,14 +475,14 @@ namespace LanControl.Agent
                           "• Đơn vị: Phòng CNTT, BV ĐK Châu Đốc\n" +
                           "• Email: tocnttbkdkkvtinh@gmail.com";
 
-            MessageBox.Show(info, "Thông tin chương trình (About)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            ShowTopMostMessage(info, "Thông tin chương trình (About)", MessageBoxIcon.Information);
         }
 
         private void OnRequestHelp(object sender, EventArgs e)
         {
             if (!_client.IsConnected)
             {
-                MessageBox.Show("Máy trạm hiện chưa kết nối với Gateway Server!\nVui lòng kiểm tra lại kết nối mạng.", "Không thể gửi yêu cầu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowTopMostMessage("Máy trạm hiện chưa kết nối với Gateway Server!\nVui lòng kiểm tra lại kết nối mạng.", "Không thể gửi yêu cầu", MessageBoxIcon.Warning);
                 return;
             }
 
@@ -392,6 +495,7 @@ namespace LanControl.Agent
                 prompt.StartPosition = FormStartPosition.CenterScreen;
                 prompt.MaximizeBox = false;
                 prompt.MinimizeBox = false;
+                PrepareActiveDialog(prompt);
 
                 Label lblMsg = new Label() { Left = 20, Top = 15, Text = "Nhập nội dung/lời nhắn cần hỗ trợ (hoặc để mặc định):", Width = 360 };
                 TextBox txtMsg = new TextBox() { Left = 20, Top = 40, Width = 360, Text = "Cần quản trị viên kết nối hỗ trợ xử lý sự cố." };
@@ -404,25 +508,32 @@ namespace LanControl.Agent
                 prompt.Controls.Add(btnCancel);
                 prompt.AcceptButton = btnSend;
 
-                if (prompt.ShowDialog() == DialogResult.OK)
+                try
                 {
-                    string msg = txtMsg.Text.Trim();
-                    bool sent = _client.SendHelpRequest(msg);
-                    if (sent)
+                    if (prompt.ShowDialog() == DialogResult.OK)
                     {
-                        if (_trayIcon != null)
+                        string msg = txtMsg.Text.Trim();
+                        bool sent = _client.SendHelpRequest(msg);
+                        if (sent)
                         {
-                            _trayIcon.ShowBalloonTip(4000, "Đã Gửi Yêu Cầu Hỗ Trợ", "Đã gửi yêu cầu kết nối tới Quản trị viên. Vui lòng chờ phản hồi.", ToolTipIcon.Info);
+                            if (_trayIcon != null)
+                            {
+                                _trayIcon.ShowBalloonTip(4000, "Đã Gửi Yêu Cầu Hỗ Trợ", "Đã gửi yêu cầu kết nối tới Quản trị viên. Vui lòng chờ phản hồi.", ToolTipIcon.Info);
+                            }
+                            else
+                            {
+                                ShowTopMostMessage("Đã gửi yêu cầu tới Quản trị viên!\nVui lòng đợi quản trị viên chấp nhận kết nối.", "Đã Gửi", MessageBoxIcon.Information);
+                            }
                         }
                         else
                         {
-                            MessageBox.Show("Đã gửi yêu cầu tới Quản trị viên!\nVui lòng đợi quản trị viên chấp nhận kết nối.", "Đã Gửi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            ShowTopMostMessage("Gửi yêu cầu thất bại! Vui lòng thử lại sau.", "Lỗi", MessageBoxIcon.Error);
                         }
                     }
-                    else
-                    {
-                        MessageBox.Show("Gửi yêu cầu thất bại! Vui lòng thử lại sau.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                }
+                finally
+                {
+                    if (_activeDialog == prompt) _activeDialog = null;
                 }
             }
         }
@@ -430,26 +541,29 @@ namespace LanControl.Agent
         private void OnHelpResponse(HelpResponse resp)
         {
             if (resp == null) return;
-
-            string title = resp.Accepted ? "Quản Trị Viên Đã Chấp Nhận" : "Yêu Cầu Bị Từ Chối";
-            string text = resp.Accepted
-                ? "Quản trị viên đã đồng ý hỗ trợ và đang kết nối tới máy tính của bạn."
-                : (string.IsNullOrEmpty(resp.Message) ? "Quản trị viên hiện đang bận hoặc đã từ chối yêu cầu kết nối." : resp.Message);
-
-            ToolTipIcon icon = resp.Accepted ? ToolTipIcon.Info : ToolTipIcon.Warning;
-
-            try
+            RunMenuAction(() =>
             {
-                if (_trayIcon != null)
+                string title = resp.Accepted ? "Quản Trị Viên Đã Chấp Nhận" : "Yêu Cầu Bị Từ Chối";
+                string text = resp.Accepted
+                    ? "Quản trị viên đã đồng ý hỗ trợ và đang kết nối tới máy tính của bạn."
+                    : (string.IsNullOrEmpty(resp.Message) ? "Quản trị viên hiện đang bận hoặc đã từ chối yêu cầu kết nối." : resp.Message);
+
+                ToolTipIcon icon = resp.Accepted ? ToolTipIcon.Info : ToolTipIcon.Warning;
+
+                try
                 {
-                    _trayIcon.ShowBalloonTip(5000, title, text, icon);
+                    if (_trayIcon != null)
+                    {
+                        _trayIcon.ShowBalloonTip(5000, title, text, icon);
+                    }
                 }
-            }
-            catch { }
+                catch { }
+            });
         }
 
         private void OnExit(object sender, EventArgs e)
         {
+            try { if (_tooltipTimer != null) _tooltipTimer.Stop(); } catch { }
             _client.Stop();
             _trayIcon.Visible = false;
             Application.Exit();

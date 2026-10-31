@@ -71,9 +71,9 @@ namespace LanControl.SetupWizard
                 Path.Combine(baseDir, "..", "bin", fileName),
                 Path.Combine(baseDir, "..", "setup", fileName),
                 Path.Combine(baseDir, "files", fileName),
-                Path.Combine(@"D:\Antigravity\netsupport\bin", fileName),
-                Path.Combine(@"D:\Antigravity\netsupport\setup", fileName),
-                Path.Combine(@"D:\Antigravity\netsupport", fileName),
+                Path.Combine(@"D:\Antigravity\LanControl\bin", fileName),
+                Path.Combine(@"D:\Antigravity\LanControl\setup", fileName),
+                Path.Combine(@"D:\Antigravity\LanControl", fileName),
                 Path.Combine(@"D:\lancontrol\bin", fileName),
                 Path.Combine(@"D:\lancontrol\setup", fileName),
                 Path.Combine(@"D:\lancontrol", fileName)

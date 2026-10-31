@@ -26,7 +26,7 @@ del /f /q "bin\NetSupport*.exe" "bin\NetSupport*.dll" >nul 2>&1
 del /f /q "setup\NetSupport*.exe" "setup\NetSupport*.dll" >nul 2>&1
 
 echo [1/7] Compiling LanControl.Core.dll...
-%CSC% /nologo /target:library /out:bin\LanControl.Core.dll /r:System.Web.Extensions.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Management.dll /recurse:src\NetSupport.Core\*.cs
+%CSC% /nologo /target:library /out:bin\LanControl.Core.dll /r:System.Web.Extensions.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Management.dll /recurse:src\LanControl.Core\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Failed to build LanControl.Core.dll
     exit /b %ERRORLEVEL%
@@ -34,7 +34,7 @@ if %ERRORLEVEL% neq 0 (
 echo      [OK] LanControl.Core.dll built successfully.
 
 echo [2/7] Compiling LanControl.Gateway.exe...
-%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.Gateway.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /recurse:src\NetSupport.Gateway\*.cs
+%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.Gateway.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /recurse:src\LanControl.Gateway\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Failed to build LanControl.Gateway.exe
     exit /b %ERRORLEVEL%
@@ -42,7 +42,7 @@ if %ERRORLEVEL% neq 0 (
 echo      [OK] LanControl.Gateway.exe built successfully.
 
 echo [3/7] Compiling LanControl.Agent.exe...
-%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.Agent.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Management.dll /recurse:src\NetSupport.Agent\*.cs
+%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.Agent.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Management.dll /recurse:src\LanControl.Agent\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Failed to build LanControl.Agent.exe
     exit /b %ERRORLEVEL%
@@ -50,7 +50,7 @@ if %ERRORLEVEL% neq 0 (
 echo      [OK] LanControl.Agent.exe built successfully.
 
 echo [4/7] Compiling LanControl.Control.exe...
-%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.Control.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /recurse:src\NetSupport.Control\*.cs
+%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.Control.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /recurse:src\LanControl.Control\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Failed to build LanControl.Control.exe
     exit /b %ERRORLEVEL%
@@ -58,7 +58,7 @@ if %ERRORLEVEL% neq 0 (
 echo      [OK] LanControl.Control.exe built successfully.
 
 echo [5/7] Compiling LanControl.AgentSetup.exe...
-%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.AgentSetup.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /recurse:src\NetSupport.Installer\*.cs
+%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.AgentSetup.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /recurse:src\LanControl.Installer\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Failed to build LanControl.AgentSetup.exe
     exit /b %ERRORLEVEL%
@@ -66,7 +66,7 @@ if %ERRORLEVEL% neq 0 (
 echo      [OK] LanControl.AgentSetup.exe built successfully.
 
 echo [6/7] Compiling LanControl.ServerSetup.exe...
-%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.ServerSetup.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /recurse:src\NetSupport.ServerInstaller\*.cs
+%CSC% /nologo /win32icon:icon.ico /target:winexe /out:bin\LanControl.ServerSetup.exe /r:bin\LanControl.Core.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /recurse:src\LanControl.ServerInstaller\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Failed to build LanControl.ServerSetup.exe
     exit /b %ERRORLEVEL%
@@ -74,7 +74,7 @@ if %ERRORLEVEL% neq 0 (
 echo      [OK] LanControl.ServerSetup.exe built successfully.
 
 echo [7/7] Compiling setup\LanControlSetup.exe (1-Click Unified Installer)...
-%CSC% /nologo /win32icon:icon.ico /target:winexe /out:setup\LanControlSetup.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /recurse:src\NetSupport.SetupWizard\*.cs
+%CSC% /nologo /win32icon:icon.ico /target:winexe /out:setup\LanControlSetup.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /recurse:src\LanControl.SetupWizard\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Failed to build setup\LanControlSetup.exe
     exit /b %ERRORLEVEL%

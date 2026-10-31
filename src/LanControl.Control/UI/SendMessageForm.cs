@@ -89,9 +89,19 @@ namespace LanControl.Control.UI
                     _client.SendCommand("", CommandType.SendMessage, msg, _targetVlan);
                 }
 
-                MessageBox.Show("Đã phát đi thông điệp tới máy trạm!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                IWin32Window owner = this.Owner;
                 this.DialogResult = DialogResult.OK;
+                this.Hide();
                 this.Close();
+
+                if (owner != null)
+                {
+                    MessageBox.Show(owner, "Đã phát đi thông điệp tới máy trạm!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("Đã phát đi thông điệp tới máy trạm!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             };
 
             _btnCancel = new Button

@@ -59,7 +59,6 @@ namespace LanControl.Gateway
             };
             SetupTrayContextMenu();
             _trayIcon.DoubleClick += (s, e) => RestoreFromTray();
-            _trayIcon.MouseMove += (s, e) => UpdateTrayTooltip();
 
             // Hook Server & Logger Events
             _server.AgentsUpdated += () =>
@@ -505,21 +504,35 @@ namespace LanControl.Gateway
             _rtbLogs.BringToFront();
         }
 
+        private void RunTrayAction(Action action)
+        {
+            if (this.IsHandleCreated)
+            {
+                try
+                {
+                    this.BeginInvoke(action);
+                    return;
+                }
+                catch { }
+            }
+            action();
+        }
+
         private void SetupTrayContextMenu()
         {
-            ContextMenu menu = new ContextMenu();
-            MenuItem mTitle = new MenuItem(string.Format("🛡️ LAN Control Central Gateway (Cổng {0})", _port)) { Enabled = false };
-            menu.MenuItems.Add(mTitle);
-            menu.MenuItems.Add("-");
+            ContextMenuStrip menu = new ContextMenuStrip();
+            ToolStripMenuItem mTitle = new ToolStripMenuItem(string.Format("🛡️ LAN Control Central Gateway (Cổng {0})", _port)) { Enabled = false };
+            menu.Items.Add(mTitle);
+            menu.Items.Add(new ToolStripSeparator());
 
-            menu.MenuItems.Add(new MenuItem("🖥️ Mở Cửa Sổ Gateway", (s, e) => RestoreFromTray()));
-            menu.MenuItems.Add(new MenuItem("📥 Thu Nhỏ Xuống Khay", (s, e) => MinimizeToTray()));
-            menu.MenuItems.Add(new MenuItem("🔄 Khởi Động Lại Server", (s, e) => RestartServer()));
-            menu.MenuItems.Add(new MenuItem("ℹ️ Thông Tin Máy Chủ...", (s, e) => ShowServerInfo()));
-            menu.MenuItems.Add("-");
-            menu.MenuItems.Add(new MenuItem("❌ Dừng & Thoát Hoàn Toàn", (s, e) => ExitServerExplicitly()));
+            menu.Items.Add("🖥️ Mở Cửa Sổ Gateway", null, (s, e) => RunTrayAction(RestoreFromTray));
+            menu.Items.Add("📥 Thu Nhỏ Xuống Khay", null, (s, e) => RunTrayAction(MinimizeToTray));
+            menu.Items.Add("🔄 Khởi Động Lại Server", null, (s, e) => RunTrayAction(() => { RestoreFromTray(); RestartServer(); }));
+            menu.Items.Add("ℹ️ Thông Tin Máy Chủ...", null, (s, e) => RunTrayAction(() => { RestoreFromTray(); ShowServerInfo(); }));
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("❌ Dừng & Thoát Hoàn Toàn", null, (s, e) => RunTrayAction(() => { RestoreFromTray(); ExitServerExplicitly(); }));
 
-            _trayIcon.ContextMenu = menu;
+            _trayIcon.ContextMenuStrip = menu;
         }
 
         public void MinimizeToTray()
@@ -561,7 +574,10 @@ namespace LanControl.Gateway
                 {
                     text = text.Substring(0, 63);
                 }
-                _trayIcon.Text = text;
+                if (_trayIcon.Text != text)
+                {
+                    _trayIcon.Text = text;
+                }
             }
             catch { }
         }

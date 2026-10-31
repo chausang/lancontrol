@@ -75,6 +75,9 @@ namespace LanControl.Core.Utils
         private const int VK_MBUTTON = 0x04;
         private const uint GA_ROOT = 2;
 
+        private static bool _simLeftDown = false;
+        private static bool _simRightDown = false;
+
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
@@ -147,36 +150,36 @@ namespace LanControl.Core.Utils
                 case MouseEventType.Move:
                     SendMouseInput(MOUSEEVENTF_MOVE, 0, targetX, targetY, screenW, screenH);
 
-                    // Anti-stuck watchdog:
-                    // If controller is NOT holding the mouse button, but Windows thinks it is down
-                    // (e.g. from an interrupted drag, window minimize, or lost network packet):
-                    // Automatically inject clean UP events to unfreeze Windows desktop and taskbar.
-                    if (!ev.LeftButtonDown && (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0)
+                    // Anti-stuck watchdog: only release if InputSimulator itself injected a down event
+                    if (!ev.LeftButtonDown && _simLeftDown)
                     {
+                        _simLeftDown = false;
                         SendMouseInput(MOUSEEVENTF_LEFTUP, 0, targetX, targetY, screenW, screenH);
                     }
-                    if (!ev.RightButtonDown && (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0)
+                    if (!ev.RightButtonDown && _simRightDown)
                     {
+                        _simRightDown = false;
                         SendMouseInput(MOUSEEVENTF_RIGHTUP, 0, targetX, targetY, screenW, screenH);
                     }
                     break;
 
                 case MouseEventType.LeftDown:
-                    // When clicking, ensure the window under the cursor receives focus and activation
-                    TryActivateWindowAt(targetX, targetY);
+                    _simLeftDown = true;
                     SendMouseInput(MOUSEEVENTF_LEFTDOWN, 0, targetX, targetY, screenW, screenH);
                     break;
 
                 case MouseEventType.LeftUp:
+                    _simLeftDown = false;
                     SendMouseInput(MOUSEEVENTF_LEFTUP, 0, targetX, targetY, screenW, screenH);
                     break;
 
                 case MouseEventType.RightDown:
-                    TryActivateWindowAt(targetX, targetY);
+                    _simRightDown = true;
                     SendMouseInput(MOUSEEVENTF_RIGHTDOWN, 0, targetX, targetY, screenW, screenH);
                     break;
 
                 case MouseEventType.RightUp:
+                    _simRightDown = false;
                     SendMouseInput(MOUSEEVENTF_RIGHTUP, 0, targetX, targetY, screenW, screenH);
                     break;
 
@@ -189,7 +192,7 @@ namespace LanControl.Core.Utils
                     break;
 
                 case MouseEventType.DoubleClick:
-                    TryActivateWindowAt(targetX, targetY);
+                    _simLeftDown = false;
                     SendMouseInput(MOUSEEVENTF_LEFTDOWN, 0, targetX, targetY, screenW, screenH);
                     SendMouseInput(MOUSEEVENTF_LEFTUP, 0, targetX, targetY, screenW, screenH);
                     Thread.Sleep(30);

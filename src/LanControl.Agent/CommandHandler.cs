@@ -84,7 +84,28 @@ namespace LanControl.Agent
                         string msgText = req.Payload;
                         ThreadPool.QueueUserWorkItem(delegate
                         {
-                            MessageBox.Show(msgText, "Thông Báo Từ Quản Trị Viên (LAN Control)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            try
+                            {
+                                using (Form topOwner = new Form
+                                {
+                                    TopMost = true,
+                                    ShowInTaskbar = false,
+                                    FormBorderStyle = FormBorderStyle.None,
+                                    StartPosition = FormStartPosition.CenterScreen,
+                                    Size = new System.Drawing.Size(1, 1),
+                                    Opacity = 0
+                                })
+                                {
+                                    topOwner.Show();
+                                    topOwner.BringToFront();
+                                    topOwner.Activate();
+                                    MessageBox.Show(topOwner, msgText, "Thông Báo Từ Quản Trị Viên (LAN Control)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                }
+                            }
+                            catch
+                            {
+                                MessageBox.Show(msgText, "Thông Báo Từ Quản Trị Viên (LAN Control)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
                         });
                         resp.Output = "Message displayed to user.";
                         break;
