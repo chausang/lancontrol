@@ -544,6 +544,15 @@ namespace LanControl.Control.UI
                 return;
             }
 
+            if (_client == null || !_client.IsConnected)
+            {
+                _txtOutput.Clear();
+                _txtOutput.AppendText(string.Format("[{0:HH:mm:ss}] ❌ LỖI: Chưa kết nối tới máy chủ Gateway! Vui lòng kiểm tra LanControl.Gateway và kết nối mạng trước khi thực thi lệnh.\r\n", DateTime.Now));
+                _lblStatus.Text = "Lỗi: Chưa kết nối tới Gateway.";
+                MessageBox.Show("Chưa kết nối tới máy chủ Central Gateway!\nVui lòng kiểm tra kết nối Gateway trước khi gửi lệnh từ xa.", "Chưa kết nối Gateway", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             CommandType cmdType = _rbPowerShell.Checked ? CommandType.ExecutePs : CommandType.ExecuteCmd;
             _txtOutput.Clear();
             _txtOutput.AppendText(string.Format("[{0:HH:mm:ss}] Đang gửi lệnh thực thi...\r\n", DateTime.Now));
