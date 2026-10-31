@@ -214,22 +214,22 @@ namespace LanControl.Control
             _channel.Send(new Packet(PacketType.StopScreenStream, agentId));
         }
 
-        public void StartBroadcast()
+        public void StartBroadcast(string targetVlan = "")
         {
             if (!IsConnected) return;
-            _channel.Send(new Packet(PacketType.StartBroadcast, ""));
+            _channel.Send(new Packet(PacketType.StartBroadcast, targetVlan ?? ""));
         }
 
-        public void SendBroadcastFrame(byte[] imageBytes)
+        public void SendBroadcastFrame(byte[] imageBytes, string targetVlan = "")
         {
             if (!IsConnected || imageBytes == null) return;
-            _channel.Send(new Packet(PacketType.BroadcastFrame, "", imageBytes));
+            _channel.Send(new Packet(PacketType.BroadcastFrame, targetVlan ?? "", imageBytes));
         }
 
-        public void StopBroadcast()
+        public void StopBroadcast(string targetVlan = "")
         {
             if (!IsConnected) return;
-            _channel.Send(new Packet(PacketType.StopBroadcast, ""));
+            _channel.Send(new Packet(PacketType.StopBroadcast, targetVlan ?? ""));
         }
 
         public void RequestSubnetScan(ScanConfig config)

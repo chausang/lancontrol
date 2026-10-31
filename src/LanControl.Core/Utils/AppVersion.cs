@@ -75,6 +75,7 @@ namespace LanControl.Core.Utils
             return
                 "📌 Phiên bản hiện tại: " + FullVersion + " (Phát hành: " + ReleaseDate + ")\n\n" +
                 "🔹 Điểm mới trong " + FullVersion + " (31/10/2026):\n" +
+                "  • Phát sóng Màn hình nâng cao: Cho phép chọn phát sóng 1 chương trình cụ thể đang mở hoặc phát sóng Toàn màn hình.\n" +
                 "  • Tích hợp hệ thống Quản lý Phiên bản (Version) & Lịch sử thay đổi (CHANGELOG.md).\n" +
                 "  • Khắc phục lỗi hộp thoại 'Thành công' bị che khuất sau khi gửi tin nhắn tới máy trạm.\n" +
                 "  • Nâng cấp Menu chuột phải tại biểu tượng khay hệ thống (System Tray) và sửa lỗi chọn chức năng từ xa.\n\n" +
@@ -101,6 +102,10 @@ namespace LanControl.Core.Utils
 ## 🚀 Phiên bản v2.2.0 — *Ngày phát hành: 31/10/2026 (Bản hiện tại)*
 
 ### ✨ Tính năng mới
+- **Phát sóng 1 Chương trình cụ thể hoặc Toàn màn hình (`BroadcastSenderForm` & `ScreenCapture`)**:
+  - Bổ sung tùy chọn **🪟 Chọn 1 chương trình** bên cạnh chế độ **🖥️ Toàn màn hình** trong công cụ Phát sóng màn hình (`Broadcast`).
+  - Tự động liệt kê toàn bộ các ứng dụng/cửa sổ đang mở trên máy quản trị viên (PowerPoint, Word, Chrome, trình phát video...), cho phép chỉ phát riêng nội dung cửa sổ chương trình đã chọn tới các máy trạm (kể cả khi có cửa sổ khác đè lên nhờ công nghệ `PrintWindow` + `PW_RENDERFULLCONTENT`).
+  - Hỗ trợ chuyển đổi trực tiếp (Live Switch) giữa phát Toàn màn hình và phát từng Chương trình ngay trong khi đang phát sóng.
 - **Quản lý Phiên bản (Versioning) & Lịch sử thay đổi (Changelog)**:
   - Hiển thị đồng bộ số hiệu phiên bản `v2.2.0` trên thanh tiêu đề, thanh trạng thái (Status Bar), khay hệ thống (System Tray) của cả 4 phân hệ: `Master Control`, `Central Gateway`, `Client Agent`, và `Setup Wizard`.
   - Bổ sung tab **🕒 Lịch Sử Phiên Bản (Changelog)** ngay trong cửa sổ **Giới Thiệu (About)** của Master Control.
@@ -163,3 +168,4 @@ namespace LanControl.Core.Utils
 ";
     }
 }
+

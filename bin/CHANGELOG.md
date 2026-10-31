@@ -8,6 +8,10 @@
 ## 🚀 Phiên bản v2.2.0 — *Ngày phát hành: 31/10/2026 (Bản hiện tại)*
 
 ### ✨ Tính năng mới
+- **Phát sóng 1 Chương trình cụ thể hoặc Toàn màn hình (`BroadcastSenderForm` & `ScreenCapture`)**:
+  - Bổ sung tùy chọn **🪟 Chọn 1 chương trình** bên cạnh chế độ **🖥️ Toàn màn hình** trong công cụ Phát sóng màn hình (`Broadcast`).
+  - Tự động liệt kê toàn bộ các ứng dụng/cửa sổ đang mở trên máy quản trị viên (PowerPoint, Word, Chrome, trình phát video...), cho phép chỉ phát riêng nội dung cửa sổ chương trình đã chọn tới các máy trạm (kể cả khi có cửa sổ khác đè lên nhờ công nghệ `PrintWindow` + `PW_RENDERFULLCONTENT`).
+  - Hỗ trợ chuyển đổi trực tiếp (Live Switch) giữa phát Toàn màn hình và phát từng Chương trình ngay trong khi đang phát sóng.
 - **Quản lý Phiên bản (Versioning) & Lịch sử thay đổi (Changelog)**:
   - Hiển thị đồng bộ số hiệu phiên bản `v2.2.0` trên thanh tiêu đề, thanh trạng thái (Status Bar), khay hệ thống (System Tray) của cả 4 phân hệ: `Master Control`, `Central Gateway`, `Client Agent`, và `Setup Wizard`.
   - Bổ sung tab **🕒 Lịch Sử Phiên Bản (Changelog)** ngay trong cửa sổ **Giới Thiệu (About)** của Master Control.
@@ -67,3 +71,4 @@
   - Điều khiển chuột phím thời gian thực (Co-browsing không khóa màn hình người dùng) và phát màn hình máy chủ tới nhiều máy khách.
 - **Công Cụ Quản Trị Phòng Máy**:
   - Khóa/Mở khóa màn hình máy trạm, Gửi thông báo toàn màn hình, Thực thi lệnh CMD/PowerShell hàng loạt, Quản lý tiến trình (`Process Manager`), Quét dải IP đa luồng (`Subnet Scanner`), Tắt/Khởi động lại máy từ xa.
+

@@ -320,12 +320,20 @@ namespace LanControl.Gateway
 
         private void HandleBroadcast(NetworkChannel channel, Packet packet)
         {
-            // Master console broadcasting screen frame to all or selected agents
+            // Master console broadcasting screen frame to all or selected VLAN agents
+            string targetVlan = packet.PayloadJson != null ? packet.PayloadJson.Trim() : "";
+            bool broadcastAll = string.IsNullOrEmpty(targetVlan) || targetVlan.Equals("ALL", StringComparison.OrdinalIgnoreCase);
+
             lock (_stateLock)
             {
                 foreach (ClientConnection agentConn in _agents.Values)
                 {
-                    agentConn.Channel.Send(packet);
+                    if (broadcastAll ||
+                        (agentConn.Agent != null && !string.IsNullOrEmpty(agentConn.Agent.VlanTag) &&
+                         agentConn.Agent.VlanTag.Equals(targetVlan, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        agentConn.Channel.Send(packet);
+                    }
                 }
             }
         }
