@@ -88,6 +88,8 @@ if exist icon.ico copy /y icon.ico bin\icon.ico >nul
 if exist icon.ico copy /y icon.ico setup\icon.ico >nul
 if exist about.md copy /y about.md bin\about.md >nul
 if exist about.md copy /y about.md setup\about.md >nul
+if exist CHANGELOG.md copy /y CHANGELOG.md bin\CHANGELOG.md >nul
+if exist CHANGELOG.md copy /y CHANGELOG.md setup\CHANGELOG.md >nul
 if exist HUONG_DAN_UPDATE.md copy /y HUONG_DAN_UPDATE.md bin\HUONG_DAN_UPDATE.md >nul
 if exist HUONG_DAN_UPDATE.md copy /y HUONG_DAN_UPDATE.md setup\HUONG_DAN_UPDATE.md >nul
 copy /y bin\LanControl.Core.dll setup\ >nul

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using LanControl.Core.Models;
+using LanControl.Core.Utils;
 
 namespace LanControl.Control.UI
 {
@@ -29,6 +30,7 @@ namespace LanControl.Control.UI
         private Button _btnRebootSelected;
         private Button _btnShutdownSelected;
         private Button _btnAbout;
+        private Button _btnChangelog;
         private TextBox _txtSearch;
 
         private SplitContainer _splitMain;
@@ -43,6 +45,7 @@ namespace LanControl.Control.UI
         private ToolStripStatusLabel _lblConnStatus;
         private ToolStripStatusLabel _lblTotalCount;
         private ToolStripStatusLabel _lblVlanInfo;
+        private ToolStripStatusLabel _lblVersionInfo;
         private ToolStripStatusLabel _lblLog;
 
         public MainForm()
@@ -54,7 +57,7 @@ namespace LanControl.Control.UI
 
         private void InitializeComponent()
         {
-            this.Text = "LAN Control Manager - Trạm Quản Trị Hệ Thống Đa VLAN (Multi-VLAN Master Console)";
+            this.Text = string.Format("LAN Control Manager {0} - Trạm Quản Trị Hệ Thống Đa VLAN (Multi-VLAN Master Console)", AppVersion.FullVersion);
             this.Size = new Size(1360, 850);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = ModernTheme.BackgroundDark;
@@ -85,9 +88,13 @@ namespace LanControl.Control.UI
             _txtSearch = new TextBox { Location = new Point(600, 9), Width = 180, BackColor = ModernTheme.CardDark, ForeColor = ModernTheme.TextPrimary, Font = ModernTheme.RegularFont, BorderStyle = BorderStyle.FixedSingle };
             _txtSearch.TextChanged += (s, e) => ApplyFilter();
 
-            _btnAbout = new Button { Text = "ℹ️ Giới Thiệu (About)", Location = new Point(795, 7), Size = new Size(170, 26) };
+            _btnAbout = new Button { Text = "ℹ️ Giới Thiệu (About)", Location = new Point(795, 7), Size = new Size(160, 26) };
             ModernTheme.ApplyToButton(_btnAbout, ModernTheme.CardDark, ModernTheme.AccentCyan);
-            _btnAbout.Click += (s, e) => { using (AboutForm f = new AboutForm()) f.ShowDialog(this); };
+            _btnAbout.Click += (s, e) => { using (AboutForm f = new AboutForm(false)) f.ShowDialog(this); };
+
+            _btnChangelog = new Button { Text = string.Format("🕒 Phiên Bản {0} (Lịch Sử)", AppVersion.FullVersion), Location = new Point(961, 7), Size = new Size(195, 26) };
+            ModernTheme.ApplyToButton(_btnChangelog, ModernTheme.CardDark, ModernTheme.AccentYellow);
+            _btnChangelog.Click += (s, e) => { using (AboutForm f = new AboutForm(true)) f.ShowDialog(this); };
 
             // Row 2: Action Buttons
             _btnBroadcast = new Button { Text = "📡 Phát Sóng Màn Hình", Location = new Point(12, 42), Size = new Size(165, 32) };
@@ -128,6 +135,7 @@ namespace LanControl.Control.UI
             _topRibbon.Controls.Add(lblSearch);
             _topRibbon.Controls.Add(_txtSearch);
             _topRibbon.Controls.Add(_btnAbout);
+            _topRibbon.Controls.Add(_btnChangelog);
             _topRibbon.Controls.Add(_btnBroadcast);
             _topRibbon.Controls.Add(_btnLockAll);
             _topRibbon.Controls.Add(_btnUnlockAll);
@@ -255,11 +263,14 @@ namespace LanControl.Control.UI
             _lblConnStatus = new ToolStripStatusLabel { Text = "🔴 Mất kết nối Gateway", ForeColor = ModernTheme.AccentRed, Font = ModernTheme.SubHeaderFont };
             _lblTotalCount = new ToolStripStatusLabel { Text = "| Máy trạm Online: 0", ForeColor = ModernTheme.TextPrimary };
             _lblVlanInfo = new ToolStripStatusLabel { Text = "| Đang lọc: Tất cả", ForeColor = ModernTheme.AccentCyan };
+            _lblVersionInfo = new ToolStripStatusLabel { Text = string.Format("| 🏷️ Phiên bản: {0} ({1})", AppVersion.FullVersion, AppVersion.ReleaseDate), ForeColor = ModernTheme.AccentYellow, IsLink = false };
+            _lblVersionInfo.Click += (s, e) => { using (AboutForm f = new AboutForm(true)) f.ShowDialog(this); };
             _lblLog = new ToolStripStatusLabel { Text = "| Sẵn sàng.", Spring = true, TextAlign = ContentAlignment.MiddleRight, ForeColor = ModernTheme.TextMuted };
 
             _statusStrip.Items.Add(_lblConnStatus);
             _statusStrip.Items.Add(_lblTotalCount);
             _statusStrip.Items.Add(_lblVlanInfo);
+            _statusStrip.Items.Add(_lblVersionInfo);
             _statusStrip.Items.Add(_lblLog);
 
             this.Controls.Add(_splitMain);

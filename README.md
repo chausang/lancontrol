@@ -1,4 +1,6 @@
-# Hệ Thống Quản Lý Máy Chủ - Máy Khách (Kiểu LAN Control) Hỗ Trợ Đa VLAN
+# Hệ Thống Quản Lý Máy Chủ - Máy Khách (LAN Control v2.2.0) Hỗ Trợ Đa VLAN
+
+> **Phiên bản hiện tại**: `v2.2.0` *(Cập nhật: 31/10/2026)* — Xem chi tiết tại [CHANGELOG.md](CHANGELOG.md)
 
 Hệ thống quản trị tập trung Client-Server-Gateway mô phỏng giải pháp **LAN Control Manager & LAN Control School** kết hợp giao diện hiện đại phong cách **mRemoteNG**. Hệ thống giải quyết triệt để rào cản mạng Đa VLAN (Multi-VLAN) nhờ cơ chế kết nối ngược (**Outbound Reverse Connection**) qua máy chủ trung gian (**Central Gateway**).
 
@@ -118,3 +120,16 @@ build.bat
    - Agent sẽ tự động chạy ngầm, duy trì kết nối ngược về Gateway và tự động kết nối lại khi có sự cố mạng.
 3. **Máy Quản Trị Viên (IT Admin / Giảng Viên)**:
    - Mở `LanControl.Control.exe`, điền IP của Gateway (`192.168.1.100:8443`) và nhấn **Kết Nối** để bắt đầu quản trị toàn bộ hệ sinh thái mạng.
+
+---
+
+## 5. Lịch Sử Phiên Bản & Thay Đổi Chức Năng (Changelog)
+
+Chi tiết đầy đủ được lưu trữ trong tệp [`CHANGELOG.md`](CHANGELOG.md) và hiển thị trực tiếp trong mục **ℹ️ Giới Thiệu & Phiên Bản** của phần mềm:
+
+| Phiên bản | Ngày phát hành | Nội dung thay đổi chính |
+| :--- | :---: | :--- |
+| **v2.2.0** | `31/10/2026` | • Thêm hệ thống quản lý **Phiên bản (Version)** & **Lịch sử thay đổi (`CHANGELOG.md`)** trên toàn bộ giao diện.<br>• Sửa lỗi hộp thoại `Thành công` bị cửa sổ `Gửi Tin Nhắn` che khuất.<br>• Nâng cấp menu chuột phải tại icon khay hệ thống (System Tray) và sửa lỗi chọn chức năng từ xa qua Remote Desktop. |
+| **v2.1.0** | `29/10/2026` | • Đồng bộ thương hiệu **LAN Control Suite**.<br>• Trình cài đặt hợp nhất 1-Click (`LanControlSetup.exe`) 3 chế độ (Agent / Server / Full).<br>• Hỗ trợ hiển thị hộp thoại UAC & gửi mật khẩu Admin từ xa. |
+| **v2.0.0** | `20/09/2026` | • Kiểm kê chuyên sâu cấu hình phần cứng (RAM từng khe, ổ cứng, ngoại vi) & bản quyền Windows.<br>• Cảnh báo biến động phần cứng/phần mềm & xuất báo cáo `.md`.<br>• Truyền tệp hàng loạt đa VLAN (hỗ trợ kéo thả) & nút Gọi Hỗ Trợ từ máy trạm. |
+| **v1.0.0** | `19/09/2026` | • Khởi tạo kiến trúc Reverse Connection qua Central Gateway vượt rào cản đa VLAN.<br>• Lưới màn hình Thumbnail Matrix, Remote Desktop, Phát sóng màn hình, Khóa máy, Chạy lệnh CMD/PS, Quét IP. |

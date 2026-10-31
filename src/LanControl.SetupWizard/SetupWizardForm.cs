@@ -95,7 +95,7 @@ namespace LanControl.SetupWizard
 
         private void InitializeComponent()
         {
-            this.Text = "Trình Cài Đặt 1-Click LAN Control Multi-VLAN Suite (Agent / Server / Full)";
+            this.Text = "Trình Cài Đặt 1-Click LAN Control Multi-VLAN Suite v2.2.0 (Agent / Server / Full)";
             this.Size = new Size(900, 770);
             this.MinimumSize = new Size(900, 770);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -119,7 +119,7 @@ namespace LanControl.SetupWizard
 
             _lblTitle = new Label
             {
-                Text = "⚡ TRÌNH CÀI ĐẶT 1-CLICK LAN CONTROL MULTI-VLAN SUITE",
+                Text = "⚡ TRÌNH CÀI ĐẶT 1-CLICK LAN CONTROL SUITE — v2.2.0",
                 Font = ModernTheme.HeaderFont,
                 ForeColor = ModernTheme.AccentCyan,
                 AutoSize = true,
@@ -128,7 +128,7 @@ namespace LanControl.SetupWizard
 
             _lblSubtitle = new Label
             {
-                Text = "Chọn cài đặt Máy Trạm (Agent), Máy Chủ (Server) hoặc Cả Hai — Thiết lập & khởi chạy chỉ với 1 cú click.",
+                Text = "Phiên bản v2.2.0 (31/10/2026) — Chọn cài đặt Máy Trạm (Agent), Máy Chủ (Server) hoặc Cả Hai chỉ với 1 cú click.",
                 UseMnemonic = false,
                 Font = ModernTheme.RegularFont,
                 ForeColor = ModernTheme.TextSecondary,

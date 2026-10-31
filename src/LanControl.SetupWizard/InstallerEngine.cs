@@ -218,7 +218,7 @@ namespace LanControl.SetupWizard
                 System.Threading.Thread.Sleep(250);
 
                 // Identify required files
-                List<string> requiredFiles = new List<string> { "LanControl.Core.dll", "icon.ico", "about.md" };
+                List<string> requiredFiles = new List<string> { "LanControl.Core.dll", "icon.ico", "about.md", "CHANGELOG.md" };
                 if (installAgent)
                 {
                     requiredFiles.Add("LanControl.Agent.exe");

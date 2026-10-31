@@ -5,19 +5,36 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using LanControl.Core.Utils;
 
 namespace LanControl.Control.UI
 {
     public class AboutForm : Form
     {
         private string _aboutFilePath;
+        private string _changelogFilePath;
         private WebBrowser _wbPreview;
+        private Button _btnTabAbout;
+        private Button _btnTabChangelog;
+        private Button _btnEditChangelog;
+        private Button _btnReload;
+        private bool _showingChangelog = false;
 
-        public AboutForm()
+        public AboutForm(bool openChangelogTab = false)
         {
+            _showingChangelog = openChangelogTab;
             _aboutFilePath = ResolveAboutFilePath();
+            _changelogFilePath = AppVersion.ResolveChangelogFilePath();
             InitializeComponent();
-            LoadAboutContent();
+            UpdateTabButtonStyles();
+            if (_showingChangelog)
+            {
+                LoadChangelogContent();
+            }
+            else
+            {
+                LoadAboutContent();
+            }
         }
 
         public static string ResolveAboutFilePath()
@@ -50,9 +67,9 @@ namespace LanControl.Control.UI
 
         private void InitializeComponent()
         {
-            this.Text = "Thông Tin Phần Mềm & Tác Giả (About)";
-            this.Size = new Size(960, 720);
-            this.MinimumSize = new Size(800, 560);
+            this.Text = string.Format("Thông Tin Phần Mềm, Phiên Bản ({0}) & Lịch Sử Thay Đổi (About & Changelog)", AppVersion.FullVersion);
+            this.Size = new Size(980, 750);
+            this.MinimumSize = new Size(820, 580);
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor = ModernTheme.BackgroundDark;
             this.ForeColor = ModernTheme.TextPrimary;
@@ -71,7 +88,7 @@ namespace LanControl.Control.UI
 
             Label lblTitle = new Label
             {
-                Text = "ℹ️ LAN CONTROL MULTI-VLAN MANAGEMENT SUITE",
+                Text = string.Format("ℹ️ LAN CONTROL MULTI-VLAN MANAGEMENT SUITE — {0}", AppVersion.FullVersion.ToUpperInvariant()),
                 Font = new Font("Segoe UI", 13.5F, FontStyle.Bold),
                 ForeColor = ModernTheme.AccentCyan,
                 AutoSize = true,
@@ -80,7 +97,7 @@ namespace LanControl.Control.UI
 
             Label lblSubtitle = new Label
             {
-                Text = "Giải pháp Quản trị Máy trạm, Giám sát Đa VLAN & Hỗ trợ Y tế - Doanh nghiệp",
+                Text = string.Format("Phiên bản {0} (Phát hành: {1}) — Giải pháp Quản trị Máy trạm, Giám sát Đa VLAN & Hỗ trợ Y tế - Doanh nghiệp", AppVersion.FullVersion, AppVersion.ReleaseDate),
                 Font = ModernTheme.RegularFont,
                 ForeColor = ModernTheme.TextSecondary,
                 AutoSize = true,
@@ -91,12 +108,13 @@ namespace LanControl.Control.UI
             FlowLayoutPanel pnlBadges = new FlowLayoutPanel
             {
                 Location = new Point(18, 64),
-                Size = new Size(900, 36),
+                Size = new Size(940, 36),
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
                 BackColor = Color.Transparent
             };
 
+            pnlBadges.Controls.Add(CreateBadge("🏷️ Phiên bản: " + AppVersion.FullVersion + " (" + AppVersion.ReleaseDate + ")", Color.FromArgb(22, 160, 133)));
             pnlBadges.Controls.Add(CreateBadge("👨‍💻 Tác giả: Bùi Quang Sáng", Color.FromArgb(41, 128, 185)));
             pnlBadges.Controls.Add(CreateBadge("🏥 Phòng CNTT - BV ĐK Châu Đốc", Color.FromArgb(39, 174, 96)));
             pnlBadges.Controls.Add(CreateBadge("📧 tocnttbkdkkvtinh@gmail.com", Color.FromArgb(142, 68, 173)));
@@ -105,6 +123,68 @@ namespace LanControl.Control.UI
             pnlHeader.Controls.Add(lblTitle);
             pnlHeader.Controls.Add(lblSubtitle);
             pnlHeader.Controls.Add(pnlBadges);
+
+            // NAVIGATION & VERSION MANAGEMENT BAR
+            Panel pnlNav = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 46,
+                BackColor = ModernTheme.CardDark,
+                Padding = new Padding(16, 7, 16, 7)
+            };
+
+            _btnTabAbout = new Button
+            {
+                Text = "📖 Giới Thiệu & Tính Năng",
+                Location = new Point(16, 7),
+                Size = new Size(210, 32)
+            };
+            _btnTabAbout.Click += (s, e) =>
+            {
+                _showingChangelog = false;
+                UpdateTabButtonStyles();
+                LoadAboutContent();
+            };
+
+            _btnTabChangelog = new Button
+            {
+                Text = "🕒 Lịch Sử Phiên Bản (" + AppVersion.FullVersion + ")",
+                Location = new Point(234, 7),
+                Size = new Size(235, 32)
+            };
+            _btnTabChangelog.Click += (s, e) =>
+            {
+                _showingChangelog = true;
+                UpdateTabButtonStyles();
+                LoadChangelogContent();
+            };
+
+            _btnEditChangelog = new Button
+            {
+                Text = "📝 Mở / Sửa File Lịch Sử (CHANGELOG.md)",
+                Location = new Point(477, 7),
+                Size = new Size(275, 32)
+            };
+            ModernTheme.ApplyToButton(_btnEditChangelog, ModernTheme.PanelDark, ModernTheme.AccentYellow);
+            _btnEditChangelog.Click += OnEditChangelogClicked;
+
+            _btnReload = new Button
+            {
+                Text = "🔄 Tải Lại",
+                Location = new Point(760, 7),
+                Size = new Size(100, 32)
+            };
+            ModernTheme.ApplyToButton(_btnReload, ModernTheme.PanelDark, ModernTheme.TextPrimary);
+            _btnReload.Click += (s, e) =>
+            {
+                if (_showingChangelog) LoadChangelogContent();
+                else LoadAboutContent();
+            };
+
+            pnlNav.Controls.Add(_btnTabAbout);
+            pnlNav.Controls.Add(_btnTabChangelog);
+            pnlNav.Controls.Add(_btnEditChangelog);
+            pnlNav.Controls.Add(_btnReload);
 
             // MAIN PREVIEW BROWSER
             _wbPreview = new WebBrowser
@@ -117,7 +197,44 @@ namespace LanControl.Control.UI
             _wbPreview.Navigating += OnBrowserNavigating;
 
             this.Controls.Add(_wbPreview);
+            this.Controls.Add(pnlNav);
             this.Controls.Add(pnlHeader);
+        }
+
+        private void UpdateTabButtonStyles()
+        {
+            if (!_showingChangelog)
+            {
+                ModernTheme.ApplyToButton(_btnTabAbout, ModernTheme.AccentBlue, Color.White);
+                ModernTheme.ApplyToButton(_btnTabChangelog, ModernTheme.PanelDark, ModernTheme.AccentCyan);
+            }
+            else
+            {
+                ModernTheme.ApplyToButton(_btnTabAbout, ModernTheme.PanelDark, ModernTheme.TextPrimary);
+                ModernTheme.ApplyToButton(_btnTabChangelog, ModernTheme.AccentBlue, Color.White);
+            }
+        }
+
+        private void LoadChangelogContent()
+        {
+            string content = AppVersion.GetChangelogMarkdown();
+            RenderMarkdownHtml(content);
+        }
+
+        private void OnEditChangelogClicked(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!File.Exists(_changelogFilePath))
+                {
+                    File.WriteAllText(_changelogFilePath, AppVersion.DefaultChangelogMarkdown, Encoding.UTF8);
+                }
+                Process.Start(new ProcessStartInfo("notepad.exe", "\"" + _changelogFilePath + "\"") { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Không thể mở tệp CHANGELOG.md: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private Label CreateBadge(string text, Color bg)

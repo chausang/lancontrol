@@ -131,7 +131,7 @@ namespace LanControl.Gateway
 
         private void InitializeComponent()
         {
-            this.Text = string.Format("LAN Control Central Gateway - Máy Chủ Điều Phối Đa VLAN (Port: {0})", _port);
+            this.Text = string.Format("LAN Control Central Gateway {1} - Máy Chủ Điều Phối Đa VLAN (Port: {0})", _port, AppVersion.FullVersion);
             this.Size = new Size(1000, 720);
             this.MinimumSize = new Size(880, 580);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -149,7 +149,7 @@ namespace LanControl.Gateway
 
             Label lblTitle = new Label
             {
-                Text = "🛡️ LAN CONTROL CENTRAL GATEWAY - MULTI-VLAN HUB",
+                Text = string.Format("🛡️ LAN CONTROL CENTRAL GATEWAY {0} - MULTI-VLAN HUB", AppVersion.FullVersion.ToUpperInvariant()),
                 Font = ModernTheme.HeaderFont,
                 ForeColor = ModernTheme.AccentCyan,
                 AutoSize = true,
@@ -158,7 +158,7 @@ namespace LanControl.Gateway
 
             Label lblSubTitle = new Label
             {
-                Text = "Máy chủ trung tâm định tuyến & chuyển tiếp kết nối ngược (Reverse Connection) giữa các phân đoạn mạng",
+                Text = string.Format("Phiên bản {0} ({1}) — Máy chủ trung tâm định tuyến & chuyển tiếp kết nối ngược (Reverse Connection)", AppVersion.FullVersion, AppVersion.ReleaseDate),
                 Font = ModernTheme.RegularFont,
                 ForeColor = ModernTheme.TextSecondary,
                 AutoSize = true,
@@ -521,14 +521,14 @@ namespace LanControl.Gateway
         private void SetupTrayContextMenu()
         {
             ContextMenuStrip menu = new ContextMenuStrip();
-            ToolStripMenuItem mTitle = new ToolStripMenuItem(string.Format("🛡️ LAN Control Central Gateway (Cổng {0})", _port)) { Enabled = false };
+            ToolStripMenuItem mTitle = new ToolStripMenuItem(string.Format("🛡️ LAN Control Central Gateway {1} (Cổng {0})", _port, AppVersion.FullVersion)) { Enabled = false };
             menu.Items.Add(mTitle);
             menu.Items.Add(new ToolStripSeparator());
 
             menu.Items.Add("🖥️ Mở Cửa Sổ Gateway", null, (s, e) => RunTrayAction(RestoreFromTray));
             menu.Items.Add("📥 Thu Nhỏ Xuống Khay", null, (s, e) => RunTrayAction(MinimizeToTray));
             menu.Items.Add("🔄 Khởi Động Lại Server", null, (s, e) => RunTrayAction(() => { RestoreFromTray(); RestartServer(); }));
-            menu.Items.Add("ℹ️ Thông Tin Máy Chủ...", null, (s, e) => RunTrayAction(() => { RestoreFromTray(); ShowServerInfo(); }));
+            menu.Items.Add(string.Format("ℹ️ Thông Tin Máy Chủ & Phiên Bản ({0})...", AppVersion.FullVersion), null, (s, e) => RunTrayAction(() => { RestoreFromTray(); ShowServerInfo(); }));
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("❌ Dừng & Thoát Hoàn Toàn", null, (s, e) => RunTrayAction(() => { RestoreFromTray(); ExitServerExplicitly(); }));
 
@@ -769,20 +769,25 @@ namespace LanControl.Gateway
             TimeSpan uptime = DateTime.Now - _startTime;
 
             string info = string.Format(
-                "--- THÔNG TIN LAN CONTROL CENTRAL GATEWAY ---\n\n" +
+                "--- THÔNG TIN LAN CONTROL CENTRAL GATEWAY ({6}) ---\n\n" +
+                "• Phiên bản: {6} (Phát hành: {7})\n" +
                 "• Trạng thái: Đang hoạt động\n" +
                 "• Cổng lắng nghe (Port): {0} (TCP)\n" +
                 "• Địa chỉ IP máy chủ: {1}\n" +
                 "• Tổng số Agent online: {2} máy\n" +
                 "• Thời gian hoạt động: {3:D2}:{4:D2}:{5:D2}\n" +
                 "• Tác giả: Bùi Quang Sáng\n" +
-                "• Đơn vị: Phòng CNTT, BV ĐK Châu Đốc",
+                "• Đơn vị: Phòng CNTT, BV ĐK Châu Đốc\n\n" +
+                "--- LỊCH SỬ PHIÊN BẢN ---\n{8}",
                 _port,
                 SystemInfoCollector.GetLocalIpAddress(),
                 agentCount,
-                (int)uptime.TotalHours, uptime.Minutes, uptime.Seconds);
+                (int)uptime.TotalHours, uptime.Minutes, uptime.Seconds,
+                AppVersion.FullVersion,
+                AppVersion.ReleaseDate,
+                AppVersion.GetShortChangelogSummary());
 
-            MessageBox.Show(info, "Thông Tin Central Gateway", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, info, "Thông Tin Central Gateway " + AppVersion.FullVersion, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void ExitServerExplicitly()

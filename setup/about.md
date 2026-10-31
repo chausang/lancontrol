@@ -7,6 +7,7 @@
 
 ## 📌 Thông Tin Bản Quyền & Tác Giả
 
+- **🏷️ Phiên bản hiện tại**: **v2.2.0** *(Phát hành: 31/10/2026)*
 - **👨‍💻 Tác giả**: **Bùi Quang Sáng**
 - **🏥 Đơn vị công tác**: **Phòng CNTT - Bệnh viện Đa khoa Khu vực Châu Đốc (BV ĐK Châu Đốc)**
 - **📧 Email liên hệ**: [tocnttbkdkkvtinh@gmail.com](mailto:tocnttbkdkkvtinh@gmail.com)
@@ -74,3 +75,24 @@ Nhờ cơ chế trung chuyển **Gateway Relay Server**, máy chủ quản trị
 - **Giao diện**: Windows Forms với phong cách hiện đại Dark Theme & Glassmorphic Accent.
 - **Mã nguồn tham khảo & cảm hứng**: [https://github.com/mRemoteNG/mRemoteNG](https://github.com/mRemoteNG/mRemoteNG).
 - **Kiến trúc mạng**: Socket TCP / Relay Protocol đa VLAN với mã hóa dữ liệu.
+
+---
+
+## 🕒 Lịch Sử Phiên Bản & Thay Đổi Chức Năng (Changelog)
+
+### 🚀 Phiên bản v2.2.0 *(31/10/2026 - Hiện tại)*
+- **Quản lý Phiên bản & Lịch sử thay đổi**: Hiển thị đồng bộ số hiệu phiên bản `v2.2.0` trên toàn bộ cửa sổ, thanh trạng thái, khay hệ thống và tích hợp trình xem/chỉnh sửa `CHANGELOG.md` trực tiếp trong phần mềm.
+- **Sửa lỗi Nhắn tin**: Khắc phục lỗi hộp thoại báo `Thành công` bị cửa sổ `Gửi Thông Báo / Tin Nhắn Tới Máy Trạm` che khuất gây kẹt thao tác.
+- **Sửa lỗi Menu Khay hệ thống (System Tray) & Điều khiển từ xa**: Chuyển sang `ContextMenuStrip`, sửa lỗi click chọn chức năng từ xa trên biểu tượng khay hệ thống và đưa các hộp thoại chức năng lên lớp trên cùng (`TopMost`).
+
+### 🌟 Phiên bản v2.1.0 *(29/10/2026)*
+- Đồng bộ thương hiệu **LAN Control Suite** và phát hành trình cài đặt hợp nhất 1-Click (`LanControlSetup.exe`) hỗ trợ 3 chế độ (Agent / Server / Full).
+- Bổ sung tính năng **Hiện UAC & Nhập mật khẩu Admin từ xa** trực tiếp trên thanh công cụ Remote Desktop.
+
+### 🔍 Phiên bản v2.0.0 *(20/09/2026)*
+- Kiểm kê chuyên sâu phần cứng (CPU, RAM từng thanh, Ổ cứng, Thiết bị ngoại vi) và bản quyền Windows/Office.
+- Cảnh báo biến động cấu hình phần cứng/phần mềm và xuất báo cáo Markdown (`.md`).
+- Truyền tệp hàng loạt đa VLAN, kéo thả tệp trực tiếp và tính năng máy trạm **Gọi Hỗ Trợ Kỹ Thuật**.
+
+### 🎯 Phiên bản v1.0.0 *(19/09/2026)*
+- Phát hành phiên bản đầu tiên: Kết nối ngược đa VLAN qua Central Gateway, Lưới màn hình Thumbnail Matrix, Remote Desktop, Phát sóng màn hình, Khóa màn hình, Chạy lệnh CMD/PowerShell và Quét dải IP.

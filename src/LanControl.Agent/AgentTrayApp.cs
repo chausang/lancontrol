@@ -31,14 +31,14 @@ namespace LanControl.Agent
             _client.HelpResponseReceived += OnHelpResponse;
 
             ContextMenuStrip menu = new ContextMenuStrip();
-            ToolStripMenuItem titleItem = new ToolStripMenuItem("🛡️ LAN Control Client Agent (Active)") { Enabled = false };
+            ToolStripMenuItem titleItem = new ToolStripMenuItem(string.Format("🛡️ LAN Control Client Agent {0} (Active)", AppVersion.FullVersion)) { Enabled = false };
             menu.Items.Add(titleItem);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("🙋 Gọi Hỗ Trợ (Yêu cầu kết nối)...", null, (s, e) => RunMenuAction(() => OnRequestHelp(s, e)));
             menu.Items.Add("ℹ️ Thông tin kết nối", null, (s, e) => RunMenuAction(() => OnShowInfo(s, e)));
             menu.Items.Add("🌐 Đổi VLAN...", null, (s, e) => RunMenuAction(() => OnChangeVlan(s, e)));
             menu.Items.Add("🔄 Kết nối lại Gateway...", null, (s, e) => RunMenuAction(() => OnReconnect(s, e)));
-            menu.Items.Add("📖 Giới thiệu (About)...", null, (s, e) => RunMenuAction(() => OnShowAbout(s, e)));
+            menu.Items.Add(string.Format("📖 Giới thiệu & Phiên bản ({0})...", AppVersion.FullVersion), null, (s, e) => RunMenuAction(() => OnShowAbout(s, e)));
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("❌ Thoát Agent", null, (s, e) => RunMenuAction(() => OnExit(s, e)));
 
@@ -216,15 +216,18 @@ namespace LanControl.Agent
         private void OnShowInfo(object sender, EventArgs e)
         {
             string info = string.Format(
-                "--- THÔNG TIN MÁY KHÁCH LAN CONTROL ---\n\n" +
-                "Tên máy trạm: {0}\n" +
-                "Địa chỉ IP: {1}\n" +
-                "Địa chỉ MAC: {2}\n" +
-                "Phân đoạn VLAN: {3}\n" +
-                "Gateway Server: {4}:{5}\n" +
-                "Trạng thái: {6}\n" +
-                "Bộ nhớ RAM khả dụng: {7} MB\n" +
-                "CPU hiện tại: {8}%",
+                "--- THÔNG TIN MÁY KHÁCH LAN CONTROL ({0}) ---\n\n" +
+                "Phiên bản Agent: {0} ({1})\n" +
+                "Tên máy trạm: {2}\n" +
+                "Địa chỉ IP: {3}\n" +
+                "Địa chỉ MAC: {4}\n" +
+                "Phân đoạn VLAN: {5}\n" +
+                "Gateway Server: {6}:{7}\n" +
+                "Trạng thái: {8}\n" +
+                "Bộ nhớ RAM khả dụng: {9} MB\n" +
+                "CPU hiện tại: {10}%",
+                AppVersion.FullVersion,
+                AppVersion.ReleaseDate,
                 _client.Info.Hostname,
                 _client.Info.IpAddress,
                 _client.Info.MacAddress,
@@ -235,7 +238,7 @@ namespace LanControl.Agent
                 _client.Info.AvailableMemoryMb,
                 _client.Info.CpuUsagePercent);
 
-            ShowTopMostMessage(info, "LAN Control Client Agent", MessageBoxIcon.Information);
+            ShowTopMostMessage(info, "LAN Control Client Agent " + AppVersion.FullVersion, MessageBoxIcon.Information);
         }
 
         private void OnChangeVlan(object sender, EventArgs e)
@@ -469,13 +472,19 @@ namespace LanControl.Agent
 
         private void OnShowAbout(object sender, EventArgs e)
         {
-            string info = "LAN Control Multi-VLAN Management & Monitoring Suite\n\n" +
-                          "• Nền tảng: Phần mềm được vibe coding dựa trên mã nguồn https://github.com/mRemoteNG/mRemoteNG\n" +
-                          "• Tác giả: Bùi Quang Sáng\n" +
-                          "• Đơn vị: Phòng CNTT, BV ĐK Châu Đốc\n" +
-                          "• Email: tocnttbkdkkvtinh@gmail.com";
+            string info = string.Format(
+                "LAN Control Multi-VLAN Management & Monitoring Suite — {0}\n\n" +
+                "• Phiên bản: {0} (Phát hành: {1})\n" +
+                "• Nền tảng: Phần mềm được vibe coding dựa trên mã nguồn https://github.com/mRemoteNG/mRemoteNG\n" +
+                "• Tác giả: Bùi Quang Sáng\n" +
+                "• Đơn vị: Phòng CNTT, BV ĐK Châu Đốc\n" +
+                "• Email: tocnttbkdkkvtinh@gmail.com\n\n" +
+                "--- LỊCH SỬ THAY ĐỔI CHỨC NĂNG ---\n{2}",
+                AppVersion.FullVersion,
+                AppVersion.ReleaseDate,
+                AppVersion.GetShortChangelogSummary());
 
-            ShowTopMostMessage(info, "Thông tin chương trình (About)", MessageBoxIcon.Information);
+            ShowTopMostMessage(info, "Thông tin chương trình & Phiên bản (" + AppVersion.FullVersion + ")", MessageBoxIcon.Information);
         }
 
         private void OnRequestHelp(object sender, EventArgs e)
