@@ -572,6 +572,15 @@ namespace LanControl.Agent
 
         private void OnExit(object sender, EventArgs e)
         {
+            if (_client != null && (_client.IsBroadcasting || _client.IsLocked))
+            {
+                ShowTopMostMessage(
+                    "Không thể tắt chương trình Agent khi Quản trị viên đang Phát sóng màn hình hoặc Khóa máy trạm!",
+                    "Từ chối thao tác",
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             try { if (_tooltipTimer != null) _tooltipTimer.Stop(); } catch { }
             _client.Stop();
             _trayIcon.Visible = false;

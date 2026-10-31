@@ -12,6 +12,7 @@
   - Khi phát sóng màn hình hoặc chương trình, hệ thống tự động thu gọn thành **Cửa sổ nổi (PiP)** luôn hiển thị trên cùng (`TopMost`) ở góc màn hình để người phát vừa thao tác trên các phần mềm khác vừa quan sát trực tiếp nội dung đang truyền tới máy trạm.
   - Hỗ trợ **điều chỉnh kích thước tự do** (kéo viền/góc cửa sổ, lăn con lăn chuột trên hình xem trước, hoặc chọn nhanh cỡ Nhỏ/Vừa/Lớn trong menu chuột phải) và **kéo di chuyển cửa sổ tới bất kỳ vị trí nào** ngay trên khung hình xem trước.
   - Tích hợp công nghệ `SetWindowDisplayAffinity (WDA_EXCLUDEFROMCAPTURE)` tự động ẩn cửa sổ nổi khỏi luồng chụp màn hình khi phát Toàn màn hình, tránh hiện tượng lặp hình trên máy trạm.
+  - **Chặn người dùng máy trạm tắt cửa sổ trình chiếu (`BroadcastViewerForm` & `AgentClient`)**: Vô hiệu hóa nút đóng `[X]`, chặn phím tắt `Alt + F4`, `Esc`, chặn thu nhỏ (`Minimize` / `Win + D`), chặn thoát `Agent` từ khay hệ thống khi đang phát sóng và tự động khôi phục ngay lập tức nếu cửa sổ trình chiếu bị tác động đóng.
 - **Phát sóng 1 Chương trình cụ thể hoặc Toàn màn hình (`BroadcastSenderForm` & `ScreenCapture`)**:
   - Bổ sung tùy chọn **💻 Chọn 1 chương trình** bên cạnh chế độ **🖥️ Toàn màn hình** trong công cụ Phát sóng màn hình (`Broadcast`).
   - Tự động liệt kê toàn bộ các ứng dụng/cửa sổ đang mở trên máy quản trị viên (PowerPoint, Word, Chrome, trình phát video...), cho phép chỉ phát riêng nội dung cửa sổ chương trình đã chọn tới các máy trạm (kể cả khi có cửa sổ khác đè lên nhờ công nghệ `PrintWindow` + `PW_RENDERFULLCONTENT`).

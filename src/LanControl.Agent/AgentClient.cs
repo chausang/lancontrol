@@ -20,11 +20,14 @@ namespace LanControl.Agent
 
         private LockScreenForm _lockForm;
         private BroadcastViewerForm _broadcastViewer;
+        private volatile bool _isBroadcasting = false;
         private FileTransferHandler _fileHandler;
         private readonly object _lockState = new object();
 
         public AgentInfo Info { get { return _info; } }
         public bool IsConnected { get { return _channel != null && _channel.IsConnected; } }
+        public bool IsBroadcasting { get { return _isBroadcasting; } }
+        public bool IsLocked { get { return _info != null && _info.IsLocked; } }
 
         public event Action<bool> ConnectionStateChanged;
         public event Action<HelpResponse> HelpResponseReceived;
@@ -157,10 +160,16 @@ namespace LanControl.Agent
                         break;
 
                     case PacketType.StartBroadcast:
+                        _isBroadcasting = true;
                         OpenBroadcastViewer();
                         break;
 
                     case PacketType.BroadcastFrame:
+                        _isBroadcasting = true;
+                        if (_broadcastViewer == null || _broadcastViewer.IsDisposed)
+                        {
+                            OpenBroadcastViewer();
+                        }
                         if (_broadcastViewer != null && !_broadcastViewer.IsDisposed)
                         {
                             _broadcastViewer.UpdateFrame(packet.RawBytes);
@@ -168,6 +177,7 @@ namespace LanControl.Agent
                         break;
 
                     case PacketType.StopBroadcast:
+                        _isBroadcasting = false;
                         CloseBroadcastViewer();
                         break;
 
@@ -308,31 +318,43 @@ namespace LanControl.Agent
 
         private void OpenBroadcastViewer()
         {
-            if (_broadcastViewer == null || _broadcastViewer.IsDisposed)
+            lock (_lockState)
             {
-                Thread formThread = new Thread(new ThreadStart(delegate
+                if (_broadcastViewer == null || _broadcastViewer.IsDisposed)
                 {
-                    _broadcastViewer = new BroadcastViewerForm();
-                    Application.Run(_broadcastViewer);
-                }))
-                {
-                    IsBackground = true
-                };
-                formThread.SetApartmentState(ApartmentState.STA);
-                formThread.Start();
+                    BroadcastViewerForm viewer = new BroadcastViewerForm();
+                    _broadcastViewer = viewer;
+                    Thread formThread = new Thread(new ThreadStart(delegate
+                    {
+                        try
+                        {
+                            Application.Run(viewer);
+                        }
+                        catch { }
+                    }))
+                    {
+                        IsBackground = true
+                    };
+                    formThread.SetApartmentState(ApartmentState.STA);
+                    formThread.Start();
+                }
             }
         }
 
         private void CloseBroadcastViewer()
         {
-            if (_broadcastViewer != null && !_broadcastViewer.IsDisposed)
+            _isBroadcasting = false;
+            lock (_lockState)
             {
-                try
+                if (_broadcastViewer != null)
                 {
-                    _broadcastViewer.Invoke(new MethodInvoker(delegate { _broadcastViewer.Dispose(); }));
+                    try
+                    {
+                        _broadcastViewer.AllowCloseAndDispose();
+                    }
+                    catch { }
+                    _broadcastViewer = null;
                 }
-                catch { }
-                _broadcastViewer = null;
             }
         }
 
@@ -357,6 +379,7 @@ namespace LanControl.Agent
         private void OnDisconnected(NetworkChannel channel, Exception ex)
         {
             Logger.Warn("Lost connection to Central Gateway ({0}). Reconnecting soon...", ex != null ? ex.Message : "closed");
+            CloseBroadcastViewer();
             if (ConnectionStateChanged != null)
             {
                 ConnectionStateChanged(false);

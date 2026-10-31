@@ -1,14 +1,31 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace LanControl.Agent
 {
     public class BroadcastViewerForm : Form
     {
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnableMenuItem(IntPtr hMenu, uint uIDEnableItem, uint uEnable);
+
+        private const uint SC_CLOSE = 0xF060;
+        private const uint SC_MINIMIZE = 0xF020;
+        private const uint MF_BYCOMMAND = 0x00000000;
+        private const uint MF_GRAYED = 0x00000001;
+        private const uint MF_DISABLED = 0x00000002;
+        private const int WM_SYSCOMMAND = 0x0112;
+
         private PictureBox _picBox;
         private Label _lblStatus;
+        private Timer _keepAliveTimer;
+        private volatile bool _allowProgrammaticClose = false;
+        private FormWindowState _desiredWindowState = FormWindowState.Maximized;
 
         public BroadcastViewerForm()
         {
@@ -17,11 +34,12 @@ namespace LanControl.Agent
 
         private void InitializeComponent()
         {
-            this.Text = "LAN Control - Màn Hình Trình Chiếu Của Quản Trị Viên (Teacher Broadcast)";
+            this.Text = "LAN Control - Màn Hình Trình Chiếu Của Quản Trị Viên (Đang phát sóng - Không thể đóng)";
             this.Size = new Size(960, 560);
-            this.MinimumSize = new Size(320, 200);
+            this.MinimumSize = new Size(360, 220);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
+            this.MinimizeBox = false;
             this.BackColor = Color.Black;
             this.TopMost = true;
             this.DoubleBuffered = true;
@@ -47,6 +65,81 @@ namespace LanControl.Agent
             this.Controls.Add(_picBox);
             this.Controls.Add(_lblStatus);
             _lblStatus.BringToFront();
+
+            this.HandleCreated += (s, e) => DisableCloseButton();
+            this.Shown += (s, e) => DisableCloseButton();
+
+            // Watchdog timer to prevent client user from minimizing via Win+D / Win+M or hiding the broadcast window
+            _keepAliveTimer = new Timer { Interval = 800 };
+            _keepAliveTimer.Tick += (s, e) =>
+            {
+                if (_allowProgrammaticClose || this.IsDisposed) return;
+                try
+                {
+                    if (!this.Visible)
+                    {
+                        this.Show();
+                    }
+                    if (this.WindowState == FormWindowState.Minimized)
+                    {
+                        this.WindowState = _desiredWindowState;
+                    }
+                    if (!this.TopMost)
+                    {
+                        this.TopMost = true;
+                    }
+                }
+                catch { }
+            };
+            _keepAliveTimer.Start();
+        }
+
+        private void DisableCloseButton()
+        {
+            try
+            {
+                if (this.IsHandleCreated)
+                {
+                    IntPtr hMenu = GetSystemMenu(this.Handle, false);
+                    if (hMenu != IntPtr.Zero)
+                    {
+                        EnableMenuItem(hMenu, SC_CLOSE, MF_BYCOMMAND | MF_GRAYED | MF_DISABLED);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        public void AllowCloseAndDispose()
+        {
+            _allowProgrammaticClose = true;
+            if (this.InvokeRequired)
+            {
+                try
+                {
+                    this.BeginInvoke(new MethodInvoker(AllowCloseAndDispose));
+                }
+                catch { }
+                return;
+            }
+
+            try
+            {
+                if (_keepAliveTimer != null)
+                {
+                    _keepAliveTimer.Stop();
+                    _keepAliveTimer.Dispose();
+                    _keepAliveTimer = null;
+                }
+            }
+            catch { }
+
+            try
+            {
+                this.Close();
+                this.Dispose();
+            }
+            catch { }
         }
 
         public void UpdateFrame(byte[] imageBytes)
@@ -77,15 +170,48 @@ namespace LanControl.Agent
             catch { }
         }
 
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_SYSCOMMAND)
+            {
+                uint cmd = (uint)(m.WParam.ToInt64() & 0xFFF0);
+                if ((cmd == SC_CLOSE || cmd == SC_MINIMIZE) && !_allowProgrammaticClose)
+                {
+                    // Block closing or minimizing by client user
+                    return;
+                }
+            }
+            base.WndProc(ref m);
+        }
+
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if (keyData == Keys.Escape || keyData == (Keys.Alt | Keys.F4))
+            // Block Alt+F4 and Escape from closing or hiding the broadcast window
+            if (keyData == (Keys.Alt | Keys.F4) || keyData == Keys.Escape)
             {
-                // Let user minimize or keep in background if needed
-                this.WindowState = FormWindowState.Normal;
                 return true;
             }
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (this.WindowState != FormWindowState.Minimized)
+            {
+                _desiredWindowState = this.WindowState;
+            }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (!_allowProgrammaticClose &&
+                (e.CloseReason == CloseReason.UserClosing || e.CloseReason == CloseReason.None))
+            {
+                e.Cancel = true;
+                return;
+            }
+            base.OnFormClosing(e);
         }
     }
 }
