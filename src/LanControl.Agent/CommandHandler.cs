@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using LanControl.Core.Models;
@@ -11,6 +13,26 @@ namespace LanControl.Agent
 {
     public static class CommandHandler
     {
+        private static Form _activeMessageForm;
+        private static readonly object _msgFormLock = new object();
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
+        [DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
         public static CommandResponse Execute(CommandRequest req)
         {
             CommandResponse resp = new CommandResponse
@@ -82,31 +104,7 @@ namespace LanControl.Agent
 
                     case CommandType.SendMessage:
                         string msgText = req.Payload;
-                        ThreadPool.QueueUserWorkItem(delegate
-                        {
-                            try
-                            {
-                                using (Form topOwner = new Form
-                                {
-                                    TopMost = true,
-                                    ShowInTaskbar = false,
-                                    FormBorderStyle = FormBorderStyle.None,
-                                    StartPosition = FormStartPosition.CenterScreen,
-                                    Size = new System.Drawing.Size(1, 1),
-                                    Opacity = 0
-                                })
-                                {
-                                    topOwner.Show();
-                                    topOwner.BringToFront();
-                                    topOwner.Activate();
-                                    MessageBox.Show(topOwner, msgText, "Thông Báo Từ Quản Trị Viên (LAN Control)", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                }
-                            }
-                            catch
-                            {
-                                MessageBox.Show(msgText, "Thông Báo Từ Quản Trị Viên (LAN Control)", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            }
-                        });
+                        ShowClientNotificationDialog(msgText);
                         resp.Output = "Message displayed to user.";
                         break;
 
@@ -262,6 +260,189 @@ namespace LanControl.Agent
                 }
                 return stdout;
             }
+        }
+
+        private static void ForceActivateWindow(IntPtr hWnd)
+        {
+            if (hWnd == IntPtr.Zero) return;
+            try
+            {
+                IntPtr fgWnd = GetForegroundWindow();
+                uint dummy;
+                uint fgThread = fgWnd != IntPtr.Zero ? GetWindowThreadProcessId(fgWnd, out dummy) : 0;
+                uint curThread = GetCurrentThreadId();
+
+                if (fgThread != 0 && fgThread != curThread)
+                {
+                    AttachThreadInput(curThread, fgThread, true);
+                    BringWindowToTop(hWnd);
+                    SetForegroundWindow(hWnd);
+                    AttachThreadInput(curThread, fgThread, false);
+                }
+                else
+                {
+                    BringWindowToTop(hWnd);
+                    SetForegroundWindow(hWnd);
+                }
+            }
+            catch { }
+        }
+
+        private static void ShowClientNotificationDialog(string msgText)
+        {
+            lock (_msgFormLock)
+            {
+                if (_activeMessageForm != null && !_activeMessageForm.IsDisposed)
+                {
+                    try
+                    {
+                        Form oldForm = _activeMessageForm;
+                        _activeMessageForm = null;
+                        if (oldForm.IsHandleCreated)
+                        {
+                            oldForm.BeginInvoke(new Action(delegate
+                            {
+                                try { oldForm.Close(); } catch { }
+                            }));
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            Thread msgThread = new Thread(new ThreadStart(delegate
+            {
+                try
+                {
+                    ScreenCapture.AttachToActiveInputDesktop();
+
+                    Form msgForm = new Form
+                    {
+                        Text = "Thông Báo Từ Quản Trị Viên (LAN Control)",
+                        Size = new Size(460, 220),
+                        StartPosition = FormStartPosition.CenterScreen,
+                        FormBorderStyle = FormBorderStyle.FixedDialog,
+                        MaximizeBox = false,
+                        MinimizeBox = false,
+                        TopMost = true,
+                        ShowInTaskbar = true,
+                        KeyPreview = true,
+                        BackColor = Color.FromArgb(24, 34, 48),
+                        ForeColor = Color.White
+                    };
+
+                    Panel headerPanel = new Panel
+                    {
+                        Dock = DockStyle.Top,
+                        Height = 38,
+                        BackColor = Color.FromArgb(16, 24, 36)
+                    };
+
+                    Label lblHeader = new Label
+                    {
+                        Text = "📢 THÔNG BÁO TỪ QUẢN TRỊ VIÊN (LAN CONTROL)",
+                        Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(56, 189, 248),
+                        Location = new Point(14, 9),
+                        AutoSize = true
+                    };
+                    headerPanel.Controls.Add(lblHeader);
+
+                    TextBox txtBody = new TextBox
+                    {
+                        Text = msgText ?? "",
+                        Multiline = true,
+                        ReadOnly = true,
+                        BorderStyle = BorderStyle.None,
+                        BackColor = Color.FromArgb(24, 34, 48),
+                        ForeColor = Color.White,
+                        Font = new Font("Segoe UI", 10.5f, FontStyle.Regular),
+                        Location = new Point(20, 52),
+                        Size = new Size(405, 72),
+                        ScrollBars = ScrollBars.Vertical,
+                        TabStop = false
+                    };
+
+                    Button btnOk = new Button
+                    {
+                        Text = "✓ Đã Hiểu / Đóng (OK)",
+                        Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                        Size = new Size(170, 36),
+                        Location = new Point(140, 134),
+                        BackColor = Color.FromArgb(37, 99, 235),
+                        ForeColor = Color.White,
+                        FlatStyle = FlatStyle.Flat,
+                        Cursor = Cursors.Hand
+                    };
+                    btnOk.FlatAppearance.BorderSize = 0;
+
+                    Action closeDialog = delegate
+                    {
+                        try
+                        {
+                            if (!msgForm.IsDisposed) msgForm.Close();
+                        }
+                        catch { }
+                    };
+
+                    btnOk.Click += (s, e) => closeDialog();
+                    btnOk.MouseDown += (s, e) =>
+                    {
+                        if (e.Button == MouseButtons.Left) closeDialog();
+                    };
+
+                    msgForm.KeyDown += (s, e) =>
+                    {
+                        if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Escape || e.KeyCode == Keys.Space)
+                        {
+                            e.Handled = true;
+                            closeDialog();
+                        }
+                    };
+
+                    msgForm.AcceptButton = btnOk;
+                    msgForm.CancelButton = btnOk;
+
+                    msgForm.Controls.Add(btnOk);
+                    msgForm.Controls.Add(txtBody);
+                    msgForm.Controls.Add(headerPanel);
+
+                    msgForm.Shown += (s, e) =>
+                    {
+                        try
+                        {
+                            ForceActivateWindow(msgForm.Handle);
+                            msgForm.BringToFront();
+                            msgForm.Activate();
+                            btnOk.Focus();
+                        }
+                        catch { }
+                    };
+
+                    msgForm.FormClosed += (s, e) =>
+                    {
+                        lock (_msgFormLock)
+                        {
+                            if (_activeMessageForm == msgForm)
+                            {
+                                _activeMessageForm = null;
+                            }
+                        }
+                    };
+
+                    lock (_msgFormLock)
+                    {
+                        _activeMessageForm = msgForm;
+                    }
+
+                    Application.Run(msgForm);
+                }
+                catch { }
+            }));
+
+            msgThread.IsBackground = true;
+            msgThread.SetApartmentState(ApartmentState.STA);
+            msgThread.Start();
         }
     }
 }

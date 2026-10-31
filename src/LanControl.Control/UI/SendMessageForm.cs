@@ -89,19 +89,10 @@ namespace LanControl.Control.UI
                     _client.SendCommand("", CommandType.SendMessage, msg, _targetVlan);
                 }
 
-                IWin32Window owner = this.Owner;
                 this.DialogResult = DialogResult.OK;
-                this.Hide();
                 this.Close();
 
-                if (owner != null)
-                {
-                    MessageBox.Show(owner, "Đã phát đi thông điệp tới máy trạm!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show("Đã phát đi thông điệp tới máy trạm!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                ShowNonBlockingSuccessToast(recipient);
             };
 
             _btnCancel = new Button
@@ -120,6 +111,124 @@ namespace LanControl.Control.UI
             this.Controls.Add(_btnCancel);
             this.AcceptButton = _btnSend;
             this.CancelButton = _btnCancel;
+        }
+
+        private static void ShowNonBlockingSuccessToast(string recipient)
+        {
+            try
+            {
+                ToastNotificationForm toast = new ToastNotificationForm("Đã phát đi thông điệp tới: " + recipient);
+                toast.Show();
+            }
+            catch { }
+        }
+
+        private class ToastNotificationForm : Form
+        {
+            private System.Windows.Forms.Timer _closeTimer;
+
+            protected override bool ShowWithoutActivation
+            {
+                get { return true; }
+            }
+
+            protected override CreateParams CreateParams
+            {
+                get
+                {
+                    CreateParams cp = base.CreateParams;
+                    cp.ExStyle |= 0x00000008; // WS_EX_TOPMOST
+                    cp.ExStyle |= 0x00000080; // WS_EX_TOOLWINDOW
+                    cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE
+                    return cp;
+                }
+            }
+
+            public ToastNotificationForm(string detailText)
+            {
+                this.FormBorderStyle = FormBorderStyle.None;
+                this.ShowInTaskbar = false;
+                this.TopMost = true;
+                this.StartPosition = FormStartPosition.Manual;
+                this.Size = new Size(360, 68);
+                this.BackColor = Color.FromArgb(22, 36, 54);
+                this.ForeColor = Color.White;
+
+                Rectangle workArea = Screen.PrimaryScreen.WorkingArea;
+                this.Location = new Point(workArea.Right - this.Width - 20, workArea.Bottom - this.Height - 20);
+
+                Panel accentBar = new Panel
+                {
+                    Dock = DockStyle.Left,
+                    Width = 6,
+                    BackColor = ModernTheme.AccentGreen
+                };
+
+                Label lblTitle = new Label
+                {
+                    Text = "✅ Đã gửi thông điệp tới máy trạm!",
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                    ForeColor = ModernTheme.AccentGreen,
+                    Location = new Point(16, 10),
+                    AutoSize = true
+                };
+
+                Label lblDetail = new Label
+                {
+                    Text = detailText,
+                    Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
+                    ForeColor = ModernTheme.TextSecondary,
+                    Location = new Point(16, 34),
+                    Size = new Size(310, 22),
+                    AutoEllipsis = true
+                };
+
+                Label lblClose = new Label
+                {
+                    Text = "✕",
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                    ForeColor = ModernTheme.TextSecondary,
+                    Location = new Point(332, 8),
+                    Size = new Size(20, 20),
+                    Cursor = Cursors.Hand,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+
+                EventHandler dismiss = (s, e) =>
+                {
+                    try { this.Close(); } catch { }
+                };
+
+                this.Click += dismiss;
+                lblTitle.Click += dismiss;
+                lblDetail.Click += dismiss;
+                lblClose.Click += dismiss;
+
+                this.Controls.Add(lblClose);
+                this.Controls.Add(lblTitle);
+                this.Controls.Add(lblDetail);
+                this.Controls.Add(accentBar);
+
+                this.Paint += (s, e) =>
+                {
+                    using (Pen pen = new Pen(ModernTheme.AccentGreen, 1))
+                    {
+                        e.Graphics.DrawRectangle(pen, 0, 0, this.Width - 1, this.Height - 1);
+                    }
+                };
+
+                _closeTimer = new System.Windows.Forms.Timer { Interval = 2200 };
+                _closeTimer.Tick += (s, e) =>
+                {
+                    _closeTimer.Stop();
+                    try { this.Close(); } catch { }
+                };
+                this.Shown += (s, e) => _closeTimer.Start();
+                this.FormClosed += (s, e) =>
+                {
+                    try { if (_closeTimer != null) _closeTimer.Dispose(); } catch { }
+                };
+            }
         }
     }
 }
